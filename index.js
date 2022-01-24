@@ -29,6 +29,7 @@ const { url } = require('inspector');
 const Youtube = require('simple-youtube-api');
 //const { youtubeAPI } = require('./youtube-config.json');
 const { validateID } = require('ytdl-core');
+const { inflateRaw } = require('zlib');
 const youtube = new Youtube(youtubeAPI);
 const options = { transports: ['websocket'], pingTimeout: 3000, pingInterval: 5000 };
 
@@ -68,6 +69,7 @@ client.on("ready", () => {
         type: "PLAYING"
     });
 });
+const player = createAudioPlayer();
 //!Important
 //var servers = {};
 client.on('interactionCreate', async interaction => {
@@ -150,7 +152,7 @@ client.on('interactionCreate', async interaction => {
             musicPlaying = false;
             console.log("Skipping the current song!")
             const skipSong = currentSong + 1;
-            playMusic(message, skipSong);
+            playMusic(interaction, skipSong);
             currentSong = skipSong;
             console.log(currentSong);
             await interaction.reply("Bla, Skipping current song!");
@@ -162,112 +164,24 @@ client.on('interactionCreate', async interaction => {
     else if (commandName === 'queue') {
         await interaction.reply('Disabling the news stream now.');
     }
+    else if (commandName === 'stop') {
+        await interaction.reply("Fine you party pooper :C I didn't enjoy dancing either... Hmph Baka");
+        player.stop();
+    }
 });
-
-
-
-
-
-/*
-command(client, 'addtoqueue', async (message) => {
-  let args = message.content.substring(message.content.indexOf(" ") + 1, message.content.length);
-  var addToQueue = new newSong(args, args + ".test");
-  qArray.push(addToQueue);
-})
-*/
-/* 
-command(client, 'queue', async (message) => {
-
-    console.log(qArray);
-    var listpos = 1;
-
-    const list = new Discord.MessageEmbed();
-    list.setTitle('Current Song Queue in Workers Republic!')
-    list.setColor('#FF6358')
-    for (let i = 0; i < qArray.length; i++) {
-
-        list.addField('_________', `**${listpos}) **` + `${qArray[i].title}`, false)
-        listpos++;
-    }
-    list.setThumbnail('https://i.pinimg.com/originals/d7/99/40/d799402d1b06656706a3c6729e8b3c2f.gif')
-    list.setTimestamp()
-    list.setFooter(client.user.username, client.user.avatarURL);
-
-    message.channel.send(list);
-    //message.channel.send(`song: (${song.id})  \n`);
-    //https://www.javaer101.com/en/article/40459438.html
-})
-command(client, 'get', async (message) => {
-    var queue = getQueue();
-    console.log(queue);
-})
-command(client, 'loop', async (message) => {
-    if (looping == true) {
-        message.channel.send("The current queue will not loop!");
-    }
-    else if (looping == false) {
-        looping = true;
-        message.channel.send("Looping the current queue!");
-        if (musicPlaying == false) {
-            playMusic(message, 0)
-        }
-        else { console.log("The looping has begun but the dispatcher is still playing music currently!") }
-    }
-})
-command(client, 'skip', async (message) => {
-    var lastItem = qArray[qArray.length - 1]
-    var playlist = qArray[currentSong];
-
-    console.log(playlist);
-    console.log("Last item in queue:", lastItem);
-
-    if (playlist != lastItem) {
-        musicPlaying = false;
-        console.log("Skipping the current song!")
-        const skipSong = currentSong + 1;
-        playMusic(message, skipSong);
-        currentSong = skipSong;
-        console.log(currentSong);
-        message.channel.send("Bla, Skipping current song!");
-    }
-    else {
-        message.channel.send("The lastest song is currently playing use `!loop` to make the playlist loop!")
-    }
-})
-command(client, 'remove', async (message) => {
-    //qArray.pop();
-    //songId--;
-    message.channel.send("```hey I'm sorry but I'm redoing this command atm - Rinna```")
-    //message.channel.send("Removed the last added song!(Reminder that this command can break the bot atm)");
-})
-command(client, 'stop', async (message) => {
-    dispatcher.destroy();
-    message.channel.send("Stopped the current playing music!");
-    musicPlaying == false;
-
-    queueStop == true;
-})
-
-
-//....
-});
-*/
 
 //https://github.com/discordjs/discord.js/blob/master/docs/topics/voice.md
-
-
-
+//https://github.com/amishshah/ytdl-core-discord/issues/391
+//https://github.com/amishshah/ytdl-core-discord/pull/392
+//https://github.com/discordjs/voice/blob/main/examples/music-bot/src/bot.ts
+//https://stackoverflow.com/questions/2672380/how-do-i-check-in-javascript-if-a-value-exists-at-a-certain-array-index
 
 async function playMusic(interaction, song) {
     console.log(song);
     const currentIndex = qArray.indexOf(currentSong);
     const nextIndex = (currentIndex + 1) % qArray.length;
-    //console.log(currentIndex)
-    //console.log(nextIndex)
-    currentSong = song;
 
-
-    //https://stackoverflow.com/questions/2672380/how-do-i-check-in-javascript-if-a-value-exists-at-a-certain-array-index
+    currentSong = song;   
     console.log('\x1b[31m%s\x1b[0m', "Async func song: " + song);
     //let currentSongUrl = qArray[song].songurl;
 
@@ -276,18 +190,13 @@ async function playMusic(interaction, song) {
     console.log("The song url is: " + currentSongUrl);
     //const currentSongUrl2 = "https://www.youtube.com/watch?v=5wAMj34aTAI"
 
-    //https://github.com/amishshah/ytdl-core-discord/issues/391
-    //https://github.com/amishshah/ytdl-core-discord/pull/392
-    //https://github.com/discordjs/voice/blob/main/examples/music-bot/src/bot.ts
-
-
     var stream = await ytdl(currentSongUrl, {
         filter: 'audioonly',
         highWaterMark: 1 << 25,
     });
-    const player = createAudioPlayer();
+    
     const resource = createAudioResource(stream, { inputType: StreamType.Opus });
-    //const resource = createAudioResource(stream);
+    
 
     joinVoiceChannel({
         channelId: channel.id,
@@ -321,23 +230,20 @@ async function playMusic(interaction, song) {
     player.on('idle', () => {
         console.log("Stopped");
         musicPlaying = false;
-
         console.log(currentSong);
-
         let nowPlaying = qArray[song];
         let lastItem = qArray[qArray.length - 1];
-
 
         console.log('\x1b[33m%s\x1b[0m', "Last item value:" + lastItem.url);
 
         if (nowPlaying != lastItem) {
             console.log("Skipping the current song!")
             var newSong = song + 1;
-            console.log("Play with current song: " + newSong);
+            //console.log("Play with current song: " + newSong);
             console.log("New song value: " + newSong)
             //goNext(newSong)
             //playMusic("mp.setDataSource(audioArray[currentIndex + 1]);")
-            playMusic(message, newSong);
+            playMusic(interaction, newSong);
         }
         if (nowPlaying == lastItem) {
             if (looping == true) {
@@ -350,11 +256,7 @@ async function playMusic(interaction, song) {
             queueStop = true;
         }
 
-
     });
-
-
-    //});
 }
 
 
