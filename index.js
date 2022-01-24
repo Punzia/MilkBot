@@ -82,7 +82,7 @@ client.on('interactionCreate', async interaction => {
         //let args = commandName.content.substring(message.content.indexOf(" ") + 1, message.content.length);
         const music = interaction.options.get("query").value
         console.log(music);
-        
+
         if (interaction.member.voice.channel) {
             try {
                 channel = interaction.member.voice.channel;
@@ -102,17 +102,25 @@ client.on('interactionCreate', async interaction => {
                 //songId++;
                 var addToQueue = new newSong(song.title, song.url, song.thumbnail);
                 qArray.push(addToQueue);
-                console.log(qArray);
+                //console.log(qArray);
 
 
                 //channel join was here before I moved it to playSong function!
                 if (musicPlaying === false) {
+                    var keys = Object.keys(qArray);
+                    var last = keys[keys.length - 1];
+                    console.log("key is:", Number(last))
+                    //var latestsong = qArray[last].url;
+                    //console.log("LAST;", );
+                    playMusic(interaction, Number(last));
+                    /*
                     if (queueStop == true) {
                         var nextsong = currentSong + 1;
                         playMusic(interaction, nextsong);
                     } else {
-                        playMusic(interaction, currentSong);
+
                     }
+                    */
 
                 }
                 else {
@@ -137,7 +145,7 @@ client.on('interactionCreate', async interaction => {
         } else {
             await interaction.reply('You need to join a voice channel first!');
         }
-        
+
 
 
     } else if (commandName === 'skip') {
@@ -177,11 +185,11 @@ client.on('interactionCreate', async interaction => {
 //https://stackoverflow.com/questions/2672380/how-do-i-check-in-javascript-if-a-value-exists-at-a-certain-array-index
 
 async function playMusic(interaction, song) {
-    console.log(song);
+    console.log("The song id:", song);
     const currentIndex = qArray.indexOf(currentSong);
     const nextIndex = (currentIndex + 1) % qArray.length;
 
-    currentSong = song;   
+    currentSong = song;
     console.log('\x1b[31m%s\x1b[0m', "Async func song: " + song);
     //let currentSongUrl = qArray[song].songurl;
 
@@ -194,9 +202,9 @@ async function playMusic(interaction, song) {
         filter: 'audioonly',
         highWaterMark: 1 << 25,
     });
-    
+
     const resource = createAudioResource(stream, { inputType: StreamType.Opus });
-    
+
 
     joinVoiceChannel({
         channelId: channel.id,
@@ -205,15 +213,17 @@ async function playMusic(interaction, song) {
     }).subscribe(player)
 
     player.play(resource);
-
+    musicPlaying = true;
     //player.on(AudioPlayerStatus.Playing, () => {
     //console.log('The audio player has started playing!');
-    musicPlaying = true;
+
+
     const streamInfo = {
         title: qArray[song].title,
         url: qArray[song].url,
         thumbnail: qArray[song].thumbnail,
     };
+
     const songEmbed = new MessageEmbed()
         .setColor('#eaf44d')
         .setURL(`${streamInfo.url}`)
@@ -230,7 +240,7 @@ async function playMusic(interaction, song) {
     player.on('idle', () => {
         console.log("Stopped");
         musicPlaying = false;
-        console.log(currentSong);
+        //console.log(currentSong);
         let nowPlaying = qArray[song];
         let lastItem = qArray[qArray.length - 1];
 
@@ -245,39 +255,27 @@ async function playMusic(interaction, song) {
             //playMusic("mp.setDataSource(audioArray[currentIndex + 1]);")
             playMusic(interaction, newSong);
         }
-        if (nowPlaying == lastItem) {
-            if (looping == true) {
-                playMusic(message, 0);
-            }
+        if (nowPlaying == lastItem && looping == true) {
+            playMusic(message, 0);
         }
         else {
-            console.log("The last song is currently playing use `!loop` to make the playlist loop!")
             interaction.channel.send("The current last song has been played now!");
-            queueStop = true;
+            console.log("The last song is currently playing use `!loop` to make the playlist loop!")
         }
 
     });
 }
-
-
-
+// The array structure:
 function newSong(title, url, thumbnail) {
     //this.id = id;
     this.title = title;
     this.url = url;
     this.thumbnail = thumbnail;
 }
-/*
-async function goNext(song) {
-  playMusic(song);
-}
-*/
-
 async function getQueue() {
     var queueArray = qArray.length;
     return queueArray;
 }
-
 
 async function searchYouTubeAsync(args) {
     //console.log("Loading async function!");
