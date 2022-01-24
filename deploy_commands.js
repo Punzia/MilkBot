@@ -1,5 +1,3 @@
-
-
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const { REST } = require('@discordjs/rest');
 const { Routes } = require('discord-api-types/v9');
@@ -16,6 +14,7 @@ const commands = [
 
 	new SlashCommandBuilder().setName('skip').setDescription('Skip the current playing song'),
 	new SlashCommandBuilder().setName('queue').setDescription('Shows the current queue!'),
+	new SlashCommandBuilder().setName('stop').setDescription('Stops the current playing music'),
 ]
 	.map(command => command.toJSON());
 
