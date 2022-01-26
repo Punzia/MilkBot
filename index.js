@@ -30,6 +30,7 @@ const Youtube = require('simple-youtube-api');
 //const { youtubeAPI } = require('./youtube-config.json');
 const { validateID } = require('ytdl-core');
 const { inflateRaw } = require('zlib');
+const { once } = require('events');
 const youtube = new Youtube(youtubeAPI);
 const options = { transports: ['websocket'], pingTimeout: 3000, pingInterval: 5000 };
 
@@ -96,32 +97,15 @@ client.on('interactionCreate', async interaction => {
                     thumbnail: songInfo.videoDetails.thumbnails[2].url,
                 };
 
-
-                // Add to Array.
-                //qArray.push({ id: songId, songname: song.title, songurl: url });
-                //songId++;
                 var addToQueue = new newSong(song.title, song.url, song.thumbnail);
                 qArray.push(addToQueue);
                 //console.log(qArray);
-
-
                 //channel join was here before I moved it to playSong function!
                 if (musicPlaying === false) {
                     var keys = Object.keys(qArray);
                     var last = keys[keys.length - 1];
                     console.log("key is:", Number(last))
-                    //var latestsong = qArray[last].url;
-                    //console.log("LAST;", );
                     playMusic(interaction, Number(last));
-                    /*
-                    if (queueStop == true) {
-                        var nextsong = currentSong + 1;
-                        playMusic(interaction, nextsong);
-                    } else {
-
-                    }
-                    */
-
                 }
                 else {
                     //message.channel.send(`Added song ${song.title} to queue!`);
@@ -129,10 +113,10 @@ client.on('interactionCreate', async interaction => {
                         .setColor('#FE7FDE')
                         .setURL(`${song.url}`)
                         .setTitle(`Queued ${song.title}`)
-                        .setDescription(`Song is now added to queue, check !queue to check current list!`)
+                        .setDescription('Song is now added to queue, check `/loop`to check current list!')
                         .setThumbnail(`${song.thumbnail}`)
                         .setTimestamp()
-                        .setFooter(client.user.username, client.user.avatarURL);
+                    //.setFooter(client.user.username, client.user.avatarURL);
 
                     await interaction.reply({ embeds: [addedSong] });
                     console.log(qArray);
@@ -166,7 +150,7 @@ client.on('interactionCreate', async interaction => {
             await interaction.reply("Bla, Skipping current song!");
         }
         else {
-            await interaction.reply("The lastest song is currently playing use `!loop` to make the playlist loop!")
+            await interaction.reply("The lastest song is currently playing use `/loop` to make the playlist loop!")
         }
     }
     else if (commandName === 'queue') {
@@ -185,13 +169,14 @@ client.on('interactionCreate', async interaction => {
 //https://stackoverflow.com/questions/2672380/how-do-i-check-in-javascript-if-a-value-exists-at-a-certain-array-index
 
 async function playMusic(interaction, song) {
+    currentSong = song;
     console.log("The song id:", song);
+    
+    // Going back to this to remove the CurrentSong variable
     const currentIndex = qArray.indexOf(currentSong);
     const nextIndex = (currentIndex + 1) % qArray.length;
-
-    currentSong = song;
     console.log('\x1b[31m%s\x1b[0m', "Async func song: " + song);
-    //let currentSongUrl = qArray[song].songurl;
+
 
     const currentSongUrl = qArray[song].url;
 
@@ -203,17 +188,21 @@ async function playMusic(interaction, song) {
         highWaterMark: 1 << 25,
     });
 
-    const resource = createAudioResource(stream, { inputType: StreamType.Opus });
+    const resource = createAudioResource(stream, {
+        inputType: StreamType.Opus,
+        inlineVolume: true
+    });
+    resource.volume.setVolume(0.2);
 
-
-    joinVoiceChannel({
+    const connection = joinVoiceChannel({
         channelId: channel.id,
         guildId: channel.guild.id,
         adapterCreator: channel.guild.voiceAdapterCreator,
-    }).subscribe(player)
+    })
+    connection.subscribe(player)
 
-    player.play(resource);
-    musicPlaying = true;
+
+
     //player.on(AudioPlayerStatus.Playing, () => {
     //console.log('The audio player has started playing!');
 
@@ -231,40 +220,110 @@ async function playMusic(interaction, song) {
         .setDescription(`Currently playing the song in ${interaction.member.voice.channel}`)
         .setThumbnail(`${streamInfo.thumbnail}`)
         .setTimestamp()
-    //.setFooter(client.user.username, client.user.avatarURL);
 
-    await interaction.reply({ embeds: [songEmbed] });
+    player.play(resource);
+    //await interaction.reply({ embeds: [songEmbed] });
+    await interaction.reply("Playing music now!")
+
+    player.on(AudioPlayerStatus.Playing, () => {
+        musicPlaying = true;
+        console.log("Currently playing!")
+    });
+
+    //await message.channel.send({ embeds: [songEmbed] });
+
+    /*
+    player.on('error', error => {
+        console.error(`Error: ${error.message} with resource ${error.resource.metadata.title}`);
+        player.play(getNextResource());
+    });
+    */
 
     //});
 
-    player.on('idle', () => {
-        console.log("Stopped");
+    player.on(AudioPlayerStatus.Idle, () => {
         musicPlaying = false;
-        //console.log(currentSong);
+        
+        console.log("Stopped");
+        var newSong = currentSong + 1;
+
+        console.log("New song is this atm", newSong);
+        
         let nowPlaying = qArray[song];
         let lastItem = qArray[qArray.length - 1];
-
-        console.log('\x1b[33m%s\x1b[0m', "Last item value:" + lastItem.url);
-
+        console.log("This is the last item", lastItem)
         if (nowPlaying != lastItem) {
-            console.log("Skipping the current song!")
-            var newSong = song + 1;
-            //console.log("Play with current song: " + newSong);
-            console.log("New song value: " + newSong)
-            //goNext(newSong)
-            //playMusic("mp.setDataSource(audioArray[currentIndex + 1]);")
-            playMusic(interaction, newSong);
-        }
-        if (nowPlaying == lastItem && looping == true) {
-            playMusic(message, 0);
+            // Go to the next resource!
+            nextResource(newSong);
+            //console.log(_Next)
         }
         else {
-            interaction.channel.send("The current last song has been played now!");
-            console.log("The last song is currently playing use `!loop` to make the playlist loop!")
+            interaction.followUp('The last song has been played');
         }
 
+        //console.log(currentSong);
+        /*
+        try {
+ 
+ 
+            console.log("Lastitme id:", lastItem)
+ 
+            console.log('\x1b[33m%s\x1b[0m', "Last item value:" + lastItem.url);
+            if (nowPlaying == 1) {
+                console.log("Huh?")
+            }
+            if (nowPlaying != lastItem) {
+                console.log("Skipping the current song!")
+ 
+                //console.log("Play with current song: " + newSong);
+                console.log("New song value: ", newSong)
+                //goNext(newSong)
+                //playMusic("mp.setDataSource(audioArray[currentIndex + 1]);")
+ 
+                // Make a function to get next resource
+                //player.play(playMusic(interaction, newSong));
+                
+                //playMusic(interaction, newSong);
+            }
+            else if (nowPlaying == lastItem && looping === true) {
+                //playMusic(message, 0);
+            }
+            else {
+                console.log("The song is last and now it should stop..")
+            }
+        }
+        catch (e) { console.log(e) }
+        */
     });
+
+    player.on('error', error => {
+        console.error(`Error: ${error.message} with resource ${error.resource.metadata.title}`);
+        //var newSong = song + 1;
+        player.play(nextResource(newSong))
+    });
+
 }
+
+async function nextResource(n_songdId) {
+    currentSong = n_songdId;
+    //Check if the last id is here either playe the next song musicPlaying = false;
+    //var n_songdId = currentSong + 1;
+    var nextSongUrl = qArray[n_songdId].url;
+    
+    var stream = await ytdl(nextSongUrl, {
+        filter: 'audioonly',
+        highWaterMark: 1 << 25,
+    });
+
+    const resource = createAudioResource(stream, {
+        inputType: StreamType.Opus,
+        inlineVolume: true
+    });
+    resource.volume.setVolume(0.2);
+    player.play(resource)   
+    musicPlaying = true;
+}
+
 // The array structure:
 function newSong(title, url, thumbnail) {
     //this.id = id;
