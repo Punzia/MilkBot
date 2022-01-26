@@ -249,7 +249,7 @@ async function playMusic(interaction, song) {
 
         console.log("New song is this atm", newSong);
         
-        let nowPlaying = qArray[song];
+        let nowPlaying = qArray[currentSong];
         let lastItem = qArray[qArray.length - 1];
         console.log("This is the last item", lastItem)
         if (nowPlaying != lastItem) {
