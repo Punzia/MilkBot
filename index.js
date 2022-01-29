@@ -254,6 +254,7 @@ async function playMusic(interaction, song) {
         console.log("This is the last item", lastItem)
         if (nowPlaying != lastItem) {
             // Go to the next resource!
+            // instead of newSong use qArray.shift()
             nextResource(newSong);
             //console.log(_Next)
         }
