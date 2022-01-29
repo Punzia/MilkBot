@@ -1,4 +1,4 @@
-const { Client, Intents, MessageEmbed, Permissions, VoiceChannel } = require('discord.js');
+const { Client, Intents, MessageEmbed, Permissions, VoiceChannel, Channel } = require('discord.js');
 const client = new Client({ intents: ["GUILDS", "GUILD_MESSAGES", "GUILD_VOICE_STATES"] });
 const { Opus } = require('@discordjs/opus');
 const _sodium = require('libsodium-wrappers');
@@ -10,7 +10,8 @@ const {
     StreamType,
     AudioPlayerStatus,
     VoiceConnectionStatus,
-    NoSubscriberBehavior
+    NoSubscriberBehavior,
+    getVoiceConnection
 } = require('@discordjs/voice');
 const { youtubeAPI, token } = require('./config.json');
 const ffmpeg = require("ffmpeg-static")
@@ -45,7 +46,6 @@ var qArray = [];
 
 //var queue = new Map();
 
-const player = createAudioPlayer();
 let keyObj = {}
 
 
@@ -64,6 +64,7 @@ client.on("ready", () => {
 });
 
 const queue = new Map();
+const player = createAudioPlayer();
 //!Important
 //var servers = {};
 client.on('interactionCreate', async interaction => {
@@ -71,6 +72,7 @@ client.on('interactionCreate', async interaction => {
 
     const { commandName } = interaction;
     const serverQueue = queue.get(interaction.guildId);
+    const channel = interaction.member.voice.channel;
 
 
     switch (commandName) {
@@ -78,13 +80,25 @@ client.on('interactionCreate', async interaction => {
             // Get the query that the user types!
             //playQueue(interaction, serverQueue)
 
-            console.log(interaction.guildId)
-            console.log(serverQueue)
+            //const connection = joinVoiceChannel({adapterCreator: interaction.guild.voiceAdapterCreator});
             await interaction.reply("hii!");
             playFunc(interaction, serverQueue)
+            
+            
 
             break;
         case "queue":
+
+            const connection = joinVoiceChannel({
+                channelId: channel.id,
+                guildId: channel.guild.id,
+                adapterCreator: channel.guild.voiceAdapterCreator,
+            });
+            const resource = createAudioResource('On My Own.mp3');
+            
+
+            connection.subscribe(player)
+            player.play(resource);
             await interaction.reply('queue');
             //console.log(guild.id)
             //console.log(interaction.guildId)
@@ -105,13 +119,14 @@ async function playFunc(interaction, serverQueue) {
     //qArray.push(url);
 
     let songInfo = await ytdl.getInfo(url);
+
     const song = {
         title: songInfo.videoDetails.title,
         url: songInfo.videoDetails.video_url,
         //thumbnail: songInfo.videoDetails.thumbnails[2].url,
     };
 
-    
+
     if (!serverQueue) {
         console.log('not defined yet!')
 
@@ -123,15 +138,26 @@ async function playFunc(interaction, serverQueue) {
             volume: 5,
             playing: true
         };
-        queue.set(interaction.guildid, queueContruct);
+
+        queue.set(interaction.guildId, queueContruct);
         queueContruct.songs.push(song);
+        //console.log(queueContruct);
+
         try {
             console.log("connect to channel!")
-            /*
-            var connection = await voiceChannel.join();
+            const channel = interaction.member.voice.channel;
+
+            const connection = joinVoiceChannel({
+                channelId: channel.id,
+                guildId: channel.guild.id,
+                adapterCreator: channel.guild.voiceAdapterCreator,
+            })
+            
+            connection.subscribe(player)
+            queueContruct.connection = connection;           
             queueContruct.connection = connection;
-            play(interaction.guild, queueContruct.songs[0]);
-            */
+            play(interaction.guild.id, queueContruct.songs[0]);
+            
         } catch (err) {
             console.log(err);
             //queue.delete(message.guild.id);
@@ -148,13 +174,28 @@ async function playFunc(interaction, serverQueue) {
     }
 }
 
-function play(guild, song) {
+async function play(guild, song) {
     const serverQueue = queue.get(guild.id);
     if (!song) {
-      serverQueue.voiceChannel.leave();
-      queue.delete(guild.id);
-      return;
+        //serverQueue.voiceChannel.leave();
+        queue.delete(guild.id);
+        console.log("no song");
+        return;
     }
+    console.log("go and play music!")
+    //console.log(serverQueue)
+    var stream = await ytdl(song.url, {
+        filter: 'audioonly',
+        highWaterMark: 1 << 25,
+    });
+
+    const resource = createAudioResource(stream, {
+        inputType: StreamType.Opus,
+        inlineVolume: true
+    });
+    resource.volume.setVolume(0.5);
+    player.play(resource);
+    
     /*
     const dispatcher = serverQueue.connection
       .play(ytdl(song.url))
@@ -166,7 +207,7 @@ function play(guild, song) {
     dispatcher.setVolumeLogarithmic(serverQueue.volume / 5);
     serverQueue.textChannel.send(`Start playing: **${song.title}**`);
     */
-  }
+}
 
 
 
