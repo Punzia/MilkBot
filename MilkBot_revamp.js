@@ -223,52 +223,14 @@ async function play(guild, song) {
                 .setDescription(`Currently playing the song!`)
                 .setThumbnail(`${song.thumbnail}`)
                 .setTimestamp()
-
-
             serverQueue.textChannel.send({ embeds: [songEmbed] });
 
         }
         catch (e) {
             console.log(e)
         }
-
-
     });
-
-
-    /*
-    const dispatcher = serverQueue.connection
-      .play(ytdl(song.url))
-      .on("finish", () => {
-        serverQueue.songs.shift();
-        play(guild, serverQueue.songs[0]);
-      })
-      .on("error", error => console.error(error));
-    dispatcher.setVolumeLogarithmic(serverQueue.volume / 5);
-    serverQueue.textChannel.send(`Start playing: **${song.title}**`);
-    */
 }
-
-async function nextResource(n_songdId) {
-
-    //Check if the last id is here either playe the next song musicPlaying = false;
-    //var n_songdId = currentSong + 1;
-    var nextSongUrl = qArray[n_songdId].url;
-
-    var stream = await ytdl(nextSongUrl, {
-        filter: 'audioonly',
-        highWaterMark: 1 << 25,
-    });
-    const resource = createAudioResource(stream, {
-        inputType: StreamType.Opus,
-        inlineVolume: true
-    });
-    resource.volume.setVolume(0.5);
-    player.play(resource)
-    currentSong = n_songdId;
-    musicPlaying = true;
-}
-
 // Search for the song on Youtube otherwise just take the url and add that one.
 async function searchYouTubeAsync(args) {
     //console.log("Loading async function!");
