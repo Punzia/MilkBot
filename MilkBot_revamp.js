@@ -147,7 +147,7 @@ async function playFunc(interaction, serverQueue) {
                 .setTimestamp()
 
 
-            
+
             //await guild.interaction.reply('hi')
             play(interaction.guild, queueContruct.songs[0]);
             await interaction.reply({ embeds: [songEmbed] });
@@ -185,9 +185,10 @@ async function play(guild, song) {
     console.log("-------------------------------")
 
     if (!song) {
-        serverQueue.voiceChannel.leave();
-        queue.delete(guild.id);
         console.log("no song");
+        //serverQueue.voiceChannel.leave();
+        queue.delete(guild.id);
+
         return;
     }
     console.log("go and play music!")
@@ -214,7 +215,17 @@ async function play(guild, song) {
             serverQueue.songs.shift();
             console.log("Stopped");
             play(guild, serverQueue.songs[0]);
-            serverQueue.textChannel.send(`Now currently playing: **${song.title}**`)
+            //serverQueue.textChannel.send(`Now currently playing: **${song.title}**`)
+            const songEmbed = new MessageEmbed()
+                .setColor('#eaf44d')
+                .setURL(`${song.url}`)
+                .setTitle(`Playing ${song.title}`)
+                .setDescription(`Currently playing the song!`)
+                .setThumbnail(`${song.thumbnail}`)
+                .setTimestamp()
+
+
+            serverQueue.textChannel.send({ embeds: [songEmbed] });
 
         }
         catch (e) {
