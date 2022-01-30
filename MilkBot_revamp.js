@@ -22,7 +22,7 @@ const { OpusEncoder } = require('@discordjs/opus');
 
 const ytdl = require('ytdl-core-discord');
 //const ytdl = require('play-dl');
-const { video_basic_info, stream } = require('play-dl');
+//const { video_basic_info, stream } = require('play-dl');
 const { url } = require('inspector');
 const Youtube = require('simple-youtube-api');
 //const { youtubeAPI } = require('./youtube-config.json');
@@ -46,14 +46,6 @@ var qArray = [];
 
 //var queue = new Map();
 
-let keyObj = {}
-
-
-//https://top.gg/bot/805547973790138440
-//https://github.com/ZerioDev/Music-bot/blob/master/commands/music/search.js
-
-
-
 client.on("ready", () => {
     console.log(`Logged in as ${client.user.tag}!`);
     //client.user.
@@ -72,34 +64,22 @@ client.on('interactionCreate', async interaction => {
 
     const { commandName } = interaction;
     const serverQueue = queue.get(interaction.guildId);
-    const channel = interaction.member.voice.channel;
+    //const channel = interaction.member.voice.channel;
 
 
     switch (commandName) {
         case "play":
-            // Get the query that the user types!
-            //playQueue(interaction, serverQueue)
 
-            //const connection = joinVoiceChannel({adapterCreator: interaction.guild.voiceAdapterCreator});
-            await interaction.reply("hii!");
+            //await interaction.reply("hii!");
             playFunc(interaction, serverQueue)
-            
-            
 
             break;
         case "queue":
 
-            const connection = joinVoiceChannel({
-                channelId: channel.id,
-                guildId: channel.guild.id,
-                adapterCreator: channel.guild.voiceAdapterCreator,
-            });
-            const resource = createAudioResource('On My Own.mp3');
-            
-
-            connection.subscribe(player)
-            player.play(resource);
             await interaction.reply('queue');
+            //console.log(serverQueue)
+            const test = queue.get(interaction.guild.guildId);
+            console.log(test)
             //console.log(guild.id)
             //console.log(interaction.guildId)
             break;
@@ -123,7 +103,7 @@ async function playFunc(interaction, serverQueue) {
     const song = {
         title: songInfo.videoDetails.title,
         url: songInfo.videoDetails.video_url,
-        //thumbnail: songInfo.videoDetails.thumbnails[2].url,
+        thumbnail: songInfo.videoDetails.thumbnails[2].url,
     };
 
 
@@ -138,10 +118,13 @@ async function playFunc(interaction, serverQueue) {
             volume: 5,
             playing: true
         };
-
+        console.log("------------")
+        console.log(interaction.guildId)
+        console.log("------------")
         queue.set(interaction.guildId, queueContruct);
         queueContruct.songs.push(song);
         //console.log(queueContruct);
+
 
         try {
             console.log("connect to channel!")
@@ -152,32 +135,57 @@ async function playFunc(interaction, serverQueue) {
                 guildId: channel.guild.id,
                 adapterCreator: channel.guild.voiceAdapterCreator,
             })
-            
             connection.subscribe(player)
-            queueContruct.connection = connection;           
+
             queueContruct.connection = connection;
-            play(interaction.guild.id, queueContruct.songs[0]);
+            const songEmbed = new MessageEmbed()
+                .setColor('#eaf44d')
+                .setURL(`${song.url}`)
+                .setTitle(`Playing ${song.title}`)
+                .setDescription(`Currently playing the song in General`)
+                .setThumbnail(`${song.thumbnail}`)
+                .setTimestamp()
+
+
             
+            //await guild.interaction.reply('hi')
+            play(interaction.guild, queueContruct.songs[0]);
+            await interaction.reply({ embeds: [songEmbed] });
+
+
         } catch (err) {
             console.log(err);
             //queue.delete(message.guild.id);
             //return message.channel.send(err);
         }
-
-
-
     } else {
-        //serverQueue.songs.push(song);
+        serverQueue.songs.push(song);
         //console.log(serverQueue.songs);
-        //return interaction.reply(`${song.title} has been added to the queue!`);
         console.log("Adding to the queue!")
+        const addedSong = new MessageEmbed()
+            .setColor('#FE7FDE')
+            .setURL(`${song.url}`)
+            .setTitle(`Queued ${song.title}`)
+            .setDescription('Song is now added to queue, check `/loop`to check current list!')
+            //.setThumbnail(`${song.thumbnail}`)
+            .setTimestamp()
+
+        await interaction.reply({ embeds: [addedSong] });
+
     }
 }
 
 async function play(guild, song) {
     const serverQueue = queue.get(guild.id);
+    //console.log(serverQueue);
+    console.log("-------SERVER QUEUEE-----------")
+    console.log(serverQueue)
+    console.log("-------------------------------")
+    console.log(serverQueue.songs)
+    console.log("-------------------------------")
+
     if (!song) {
-        //serverQueue.voiceChannel.leave();
+        serverQueue.voiceChannel.leave();
         queue.delete(guild.id);
         console.log("no song");
         return;
@@ -194,8 +202,29 @@ async function play(guild, song) {
         inlineVolume: true
     });
     resource.volume.setVolume(0.5);
+    //${interaction.member.voice.channel}
+
+
+    //await interaction.reply(`Playing ${song.title}`)
     player.play(resource);
-    
+
+
+    player.on(AudioPlayerStatus.Idle, () => {
+        try {
+            serverQueue.songs.shift();
+            console.log("Stopped");
+            play(guild, serverQueue.songs[0]);
+            serverQueue.textChannel.send(`Now currently playing: **${song.title}**`)
+
+        }
+        catch (e) {
+            console.log(e)
+        }
+
+
+    });
+
+
     /*
     const dispatcher = serverQueue.connection
       .play(ytdl(song.url))
@@ -207,65 +236,6 @@ async function play(guild, song) {
     dispatcher.setVolumeLogarithmic(serverQueue.volume / 5);
     serverQueue.textChannel.send(`Start playing: **${song.title}**`);
     */
-}
-
-
-
-async function playMusic(interaction, song) {
-
-
-    var stream = await ytdl(currentSongUrl, {
-        filter: 'audioonly',
-        highWaterMark: 1 << 25,
-    });
-
-    const resource = createAudioResource(stream, {
-        inputType: StreamType.Opus,
-        inlineVolume: true
-    });
-    resource.volume.setVolume(0.5);
-
-    const connection = joinVoiceChannel({
-        channelId: channel.id,
-        guildId: channel.guild.id,
-        adapterCreator: channel.guild.voiceAdapterCreator,
-    })
-    connection.subscribe(player)
-
-    const streamInfo = {
-        title: qArray[song].title,
-        url: qArray[song].url,
-        thumbnail: qArray[song].thumbnail,
-    };
-
-    const songEmbed = new MessageEmbed()
-        .setColor('#eaf44d')
-        .setURL(`${streamInfo.url}`)
-        .setTitle(`Playing ${streamInfo.title}`)
-        .setDescription(`Currently playing the song in ${interaction.member.voice.channel}`)
-        .setThumbnail(`${streamInfo.thumbnail}`)
-        .setTimestamp()
-
-    await interaction.reply({ embeds: [songEmbed] });
-    player.play(resource);
-
-    player.on(AudioPlayerStatus.Playing, () => {
-        console.log('\x1b[31m%s\x1b[0m', currentSong)
-        console.log("Currently playing!")
-    });
-
-    player.on(AudioPlayerStatus.Idle, () => {
-
-        console.log("Stopped");
-
-    });
-
-    player.on('error', error => {
-        console.error(`Error: ${error.message} with resource ${error.resource.metadata.title}`);
-        //var newSong = song + 1;
-        player.play(nextResource(newSong))
-    });
-
 }
 
 async function nextResource(n_songdId) {
@@ -288,19 +258,6 @@ async function nextResource(n_songdId) {
     musicPlaying = true;
 }
 
-// The array structure:
-function newSong(title, url, thumbnail) {
-    //this.id = id;
-    this.title = title;
-    this.url = url;
-    this.thumbnail = thumbnail;
-}
-/*
-async function getQueue() {
-    var queueArray = qArray.length;
-    return queueArray;
-}
-*/
 // Search for the song on Youtube otherwise just take the url and add that one.
 async function searchYouTubeAsync(args) {
     //console.log("Loading async function!");
