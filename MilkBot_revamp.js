@@ -56,7 +56,10 @@ client.on("ready", () => {
 });
 
 const queue = new Map();
-const player = createAudioPlayer();
+//const subscriptions = new Map<Snowflake, MusicSubscription>();
+console.log(queue)
+
+//const player = createAudioPlayer();
 //!Important
 //var servers = {};
 client.on('interactionCreate', async interaction => {
@@ -69,10 +72,8 @@ client.on('interactionCreate', async interaction => {
 
     switch (commandName) {
         case "play":
-
             //await interaction.reply("hii!");
             playFunc(interaction, serverQueue)
-
             break;
         case "queue":
 
@@ -80,14 +81,13 @@ client.on('interactionCreate', async interaction => {
             //console.log(serverQueue)
             const test = queue.get(interaction.guild.guildId);
             console.log(test)
-            //console.log(guild.id)
-            //console.log(interaction.guildId)
             break;
     }
 });
 
 async function playFunc(interaction, serverQueue) {
     const query = interaction.options.get("query").value;
+    //let subscription = subscriptions.get(interaction.guildId);
     console.log("This is the queuery btw!", query)
 
     const voiceChannel = interaction.member.voice.channel;
@@ -106,37 +106,30 @@ async function playFunc(interaction, serverQueue) {
         thumbnail: songInfo.videoDetails.thumbnails[2].url,
     };
 
-
     if (!serverQueue) {
-        console.log('not defined yet!')
+        console.log('Not defined yet!')
 
         const queueContruct = {
             textChannel: interaction.channel,
             voiceChannel: voiceChannel,
             connection: null,
+            audioPlayer: createAudioPlayer(),
             songs: [],
             volume: 5,
             playing: true
         };
-        console.log("------------")
-        console.log(interaction.guildId)
-        console.log("------------")
+
         queue.set(interaction.guildId, queueContruct);
         queueContruct.songs.push(song);
-        //console.log(queueContruct);
-
 
         try {
             console.log("connect to channel!")
             const channel = interaction.member.voice.channel;
-
             const connection = joinVoiceChannel({
                 channelId: channel.id,
                 guildId: channel.guild.id,
                 adapterCreator: channel.guild.voiceAdapterCreator,
             })
-            connection.subscribe(player)
-
             queueContruct.connection = connection;
             const songEmbed = new MessageEmbed()
                 .setColor('#eaf44d')
@@ -177,12 +170,6 @@ async function playFunc(interaction, serverQueue) {
 
 async function play(guild, song) {
     const serverQueue = queue.get(guild.id);
-    //console.log(serverQueue);
-    console.log("-------SERVER QUEUEE-----------")
-    console.log(serverQueue)
-    console.log("-------------------------------")
-    console.log(serverQueue.songs)
-    console.log("-------------------------------")
 
     if (!song) {
         console.log("no song");
@@ -203,12 +190,11 @@ async function play(guild, song) {
         inlineVolume: true
     });
     resource.volume.setVolume(0.5);
-    //${interaction.member.voice.channel}
 
+    const player = serverQueue.audioPlayer;
+    serverQueue.connection.subscribe(player)
 
-    //await interaction.reply(`Playing ${song.title}`)
     player.play(resource);
-
 
     player.on(AudioPlayerStatus.Idle, () => {
         try {
@@ -216,6 +202,7 @@ async function play(guild, song) {
             console.log("Stopped");
             play(guild, serverQueue.songs[0]);
             //serverQueue.textChannel.send(`Now currently playing: **${song.title}**`)
+            /*
             const songEmbed = new MessageEmbed()
                 .setColor('#eaf44d')
                 .setURL(`${song.url}`)
@@ -224,6 +211,7 @@ async function play(guild, song) {
                 .setThumbnail(`${song.thumbnail}`)
                 .setTimestamp()
             serverQueue.textChannel.send({ embeds: [songEmbed] });
+            */
 
         }
         catch (e) {
@@ -231,14 +219,14 @@ async function play(guild, song) {
         }
     });
 }
+
 // Search for the song on Youtube otherwise just take the url and add that one.
 async function searchYouTubeAsync(args) {
-    //console.log("Loading async function!");
+
     var video = await youtube.searchVideos(args.toString().replace(/,/g, ' '));
-    var vidURL = "";
+    var vidURL;
     var regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|\?v=)([^#\&\?]*).*/;
     var match = args.match(regExp);
-    //if (args.includes("youtube.com")) {
     if (match) {
         vidURL = args;
     }
