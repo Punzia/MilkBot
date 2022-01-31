@@ -1,4 +1,4 @@
-const { Client, Intents, MessageEmbed, Permissions, VoiceChannel, Channel } = require('discord.js');
+const { Client, Intents, MessageEmbed, MessageActionRow, Permissions, VoiceChannel, Channel } = require('discord.js');
 const client = new Client({ intents: ["GUILDS", "GUILD_MESSAGES", "GUILD_VOICE_STATES"] });
 const { Opus } = require('@discordjs/opus');
 const _sodium = require('libsodium-wrappers');
@@ -30,6 +30,7 @@ const { validateID } = require('ytdl-core');
 const { inflateRaw } = require('zlib');
 const { once } = require('events');
 const { executionAsyncResource } = require('async_hooks');
+const { MessageButton } = require('discord.js');
 const youtube = new Youtube(youtubeAPI);
 //const options = { transports: ['websocket'], pingTimeout: 3000, pingInterval: 5000 };
 
@@ -50,8 +51,9 @@ client.on("ready", () => {
     console.log(`Logged in as ${client.user.tag}!`);
     //client.user.
 
-    client.user.setActivity("Music in Workers Republic ", {
-        type: "PLAYING"
+    client.user.setActivity("music🎶", {
+        status: 'idle',
+        type: "LISTENING"
     });
 });
 
@@ -72,15 +74,62 @@ client.on('interactionCreate', async interaction => {
 
     switch (commandName) {
         case "play":
-            //await interaction.reply("hii!");
+            // Time to play music!
             playFunc(interaction, serverQueue)
             break;
         case "queue":
 
             await interaction.reply('queue');
             //console.log(serverQueue)
-            const test = queue.get(interaction.guild.guildId);
+            const test = queue.get(interaction.guildId);
             console.log(test)
+            break;
+        case "skip":
+            await interaction.reply('skip command!')
+            break;
+        case "remove":
+            const musicQueue = queue.get(interaction.guildId);
+            const args = interaction.options.get('id').value;
+
+            console.log(musicQueue.songs.length)
+
+            if (!args[0]) {
+                return await interaction.reply('hiii')
+            }
+            console.log(serverQueue.songs[0])
+            if (isNaN(args[0])) {
+                return await interaction.reply('The ID must be a number!')
+            }
+            if (args[0] > musicQueue.songs.length) {
+                return await interaction.reply(":x: **The queue doesn't have that much songs**")
+            }
+            else {
+                const row = new MessageActionRow()
+                row.addComponents(
+                    new MessageButton()
+                        .setCustomId('Yes')
+                        .setLabel('✔️')
+                        .setStyle('PRIMARY'),
+                );
+                row.addComponents(
+                    new MessageButton()
+                        .setCustomId('No')
+                        .setLabel('✖️')
+                        .setStyle('PRIMARY')
+                );
+
+                var _title = musicQueue.songs[args[0] - 1].title;
+                await interaction.reply({ content: `Want to me to remove ${_title}?`, components: [row] })
+            }
+            //var what = musicQueue.songs[args - 1].title;
+            //console.log(what)
+            console.log(_title)
+            //await interaction.reply(names);
+            //queueContruct.songs.splice(args[0] - 1);
+            break;
+        case "stop":
+            await interaction.reply('Stopping the queue!')
+            serverQueue.audioPlayer.stop()
             break;
     }
 });
@@ -160,7 +209,7 @@ async function playFunc(interaction, serverQueue) {
             .setURL(`${song.url}`)
             .setTitle(`Queued ${song.title}`)
             .setDescription('Song is now added to queue, check `/loop`to check current list!')
-            //.setThumbnail(`${song.thumbnail}`)
+            .setThumbnail(`${song.thumbnail}`)
             .setTimestamp()
 
         await interaction.reply({ embeds: [addedSong] });
@@ -198,10 +247,20 @@ async function play(guild, song) {
 
     player.on(AudioPlayerStatus.Idle, () => {
         try {
+            /* 
+            Shift() removes the first song but if it tries to play the next song it just removes the first song
+            but it plays the next song
+
+
+
+
+            */
+
             serverQueue.songs.shift();
             console.log("Stopped");
             play(guild, serverQueue.songs[0]);
-            //serverQueue.textChannel.send(`Now currently playing: **${song.title}**`)
+            console.log(serverQueue.songs[0])
+            //serverQueue.textChannel.followup(`Now currently playing: **${song.title}**`)
             /*
             const songEmbed = new MessageEmbed()
                 .setColor('#eaf44d')
