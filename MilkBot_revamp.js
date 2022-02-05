@@ -2,6 +2,7 @@ const { Client, Intents, MessageEmbed, MessageActionRow, Permissions, VoiceChann
 const client = new Client({ intents: ["GUILDS", "GUILD_MESSAGES", "GUILD_VOICE_STATES"] });
 const { Opus } = require('@discordjs/opus');
 const _sodium = require('libsodium-wrappers');
+const wait = require('util').promisify(setTimeout);
 const {
     joinVoiceChannel,
     createAudioPlayer,
@@ -69,6 +70,7 @@ client.on('interactionCreate', async interaction => {
 
     const { commandName } = interaction;
     const serverQueue = queue.get(interaction.guildId);
+    //const collector = interaction.channel.createMessageComponentCollector({ filter, time: 15000 });
     //const channel = interaction.member.voice.channel;
 
 
@@ -91,14 +93,21 @@ client.on('interactionCreate', async interaction => {
             const musicQueue = queue.get(interaction.guildId);
             const args = interaction.options.get('id').value;
 
-            console.log(musicQueue.songs.length)
+            //console.log(musicQueue.songs.length)
+            if (!musicQueue) {
+                return await interaction.reply('B-but there are no songs!')
+            }
 
             if (!args[0]) {
-                return await interaction.reply('hiii')
+                return await interaction.reply('No song number provided')
             }
-            console.log(serverQueue.songs[0])
+            //console.log(serverQueue.songs[0])
             if (isNaN(args[0])) {
                 return await interaction.reply('The ID must be a number!')
+            }
+            if (args[0] <= 0) {
+                //const imagecook = new MessageAttachment('./assets/jinx-arcane.gif');
+                return await interaction.reply(":x: You're such a loser ready to cry!" , {files: ["https://i.imgur.com/RrazIHR.gif"] })
             }
             if (args[0] > musicQueue.songs.length) {
                 return await interaction.reply(":x: **The queue doesn't have that much songs**")
@@ -109,17 +118,28 @@ client.on('interactionCreate', async interaction => {
                     new MessageButton()
                         .setCustomId('Yes')
                         .setLabel('✔️')
-                        .setStyle('PRIMARY'),
+                        .setStyle('SECONDARY'),
                 );
                 row.addComponents(
                     new MessageButton()
                         .setCustomId('No')
                         .setLabel('✖️')
-                        .setStyle('PRIMARY')
+                        .setStyle('SECONDARY')
                 );
 
                 var _title = musicQueue.songs[args[0] - 1].title;
                 await interaction.reply({ content: `Want to me to remove ${_title}?`, components: [row] })
+                /*
+                collector.on('collect', async i => {
+                    if (i.customId === 'primary') {
+                        await i.deferUpdate();
+                        await wait(4000);
+                        await i.editReply({ content: 'A button was clicked!', components: [] });
+                    }
+                });
+                */
+
+                //collector.on('end', collected => console.log(`Collected ${collected.size} items`));
             }
             //var what = musicQueue.songs[args - 1].title;
             //console.log(what)
@@ -181,10 +201,10 @@ async function playFunc(interaction, serverQueue) {
             })
             queueContruct.connection = connection;
             const songEmbed = new MessageEmbed()
-                .setColor('#eaf44d')
+                .setColor('#4B0082')
                 .setURL(`${song.url}`)
                 .setTitle(`Playing ${song.title}`)
-                .setDescription(`Currently playing the song in General`)
+                .setDescription(`Currently playing the song in ${queueContruct.voiceChannel}`)
                 .setThumbnail(`${song.thumbnail}`)
                 .setTimestamp()
 
