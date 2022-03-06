@@ -96,16 +96,16 @@ client.on('interactionCreate', async interaction => {
                 var listpos = 1;
 
                 const list = new MessageEmbed()
-                list.setTitle('Current Song Queue in Workers Republic!')
-                list.setColor('#FF6358')
+                list.setTitle('Current Song Queue!')
+                list.setColor('#000000')
                 for (let i = 0; i < songsArray.length; i++) {
                     if (serverQueue.currentSong == i) {
-                        list.addField(`**${listpos}) **` + `${songsArray[i].title} (**PLAYING RIGHT NOW!**)`, `${songsArray[i].url}`, false)
+                        list.addField(`**${listpos}.) **` + `${songsArray[i].title}` + "```(PLAYING RIGHT NOW!)```", `${songsArray[i].url}`, false)
                     }
-                    else{
+                    else {
                         list.addField(`**${listpos}) **` + `${songsArray[i].title}`, `${songsArray[i].url}`, false)
                     }
-                    
+
                     listpos++;
                 }
                 await interaction.reply({ embeds: [list] });
@@ -115,12 +115,13 @@ client.on('interactionCreate', async interaction => {
             break;
         case "skip":
             //await interaction.reply('skip command!')
-            skip(interaction, serverQueue);
+            //getNextResource(guild, serverQueue.songs[serverQueue.currentSong + 1])
             break;
         case "remove":
             const musicQueue = queue.get(interaction.guildId);
             const args = interaction.options.get('id').value;
-            const currentPlaying = musicQueue.currentSong;
+            //console.log(args[0]);
+            //var currentPlaying = serverQueue.currentSong;
             //console.log(musicQueue.songs.length)
             if (!musicQueue) {
                 return await interaction.reply('B-but there are no songs!')
@@ -139,7 +140,7 @@ client.on('interactionCreate', async interaction => {
             if (args[0] > musicQueue.songs.length) {
                 return await interaction.reply(":x: **The queue doesn't have that much songs**")
             }
-            if (args[0] == currentPlaying) {
+            if (args[0] == musicQueue.currentSong + 1) {
                 return await interaction.reply(":x: **I rather not remove the currently playing song... Better to skip it instead..**")
             }
             else {
@@ -256,7 +257,7 @@ async function playFunc(interaction, serverQueue) {
             })
             queueContruct.connection = connection;
             const songEmbed = new MessageEmbed()
-                .setColor('#ffffff')
+                .setColor('#34C5E3')
                 .setURL(`${song.url}`)
                 .setTitle(`Playing ${song.title}`)
                 .setDescription(`Currently playing the song in ${queueContruct.voiceChannel}`)
@@ -296,22 +297,22 @@ async function playFunc(interaction, serverQueue) {
                 .setDescription(`Currently playing the song in ${serverQueue.voiceChannel}`)
                 .setThumbnail(`${nextSong.thumbnail}`)
                 .setTimestamp()
-            
+
             await interaction.reply({ embeds: [songEmbed] });
-            
+
             serverQueue.currentSong = nextItem;
             play(interaction.guild, nextSong);
-            
+
 
         }
         else {
             //console.log(serverQueue.songs);
             console.log("Adding to the queue!")
             const addedSong = new MessageEmbed()
-                .setColor('#000000')
+                .setColor('#D427FA')
                 .setURL(`${song.url}`)
                 .setTitle(`Queued ${song.title}`)
-                .setDescription('Song is now added to queue, check `/loop`to check current list!')
+                .setDescription('Song is now added to queue, check `/queue`to check current list!')
                 .setThumbnail(`${song.thumbnail}`)
                 .setTimestamp()
 
@@ -349,17 +350,31 @@ async function play(guild, song) {
         inlineVolume: true
     });
     resource.volume.setVolume(1);
+    // Get next song!
+    //Get the next song in queue and then launch the play function (Needs to get fixed)
+
+    /*
+    Probably function that gets the song instead and add stream and resource and return resource back to play it;
+    player.on(AudioPlayerStatus.Idle, () => {
+        player.play(getNextResource());
+    });
+    
+    */
 
     const player = serverQueue.audioPlayer;
     serverQueue.connection.subscribe(player)
-    
+
     player.play(resource);
-    
+
     player.on(AudioPlayerStatus.Idle, () => {
         try {
-            console.log("Stopped");
-            getNextResource(guild, serverQueue.songs[serverQueue.currentSong + 1])
-            console.log(serverQueue)
+            console.log("Idle");
+            if (serverQueue.playing == true) {
+                getNextResource(guild, serverQueue.songs[serverQueue.currentSong + 1])
+            }
+            else {
+                serverQueue.playing = false;
+            }
         }
         catch (e) {
             console.log(e)
@@ -368,31 +383,33 @@ async function play(guild, song) {
     //}
 }
 
-// Get next song!
+
+
 async function getNextResource(guild, song) {
     const serverQueue = queue.get(guild.id);
 
     if (!song) {
         console.log("No more songs")
         serverQueue.playing = false;
-        return;
+        //return;
     }
-    else {   
+    else {
 
         const nextItem = serverQueue.currentSong + 1;
         const nextSong = serverQueue.songs[nextItem]
         const songEmbed = new MessageEmbed()
-        .setColor('#ffffff')
-        .setURL(`${nextSong.url}`)
-        .setTitle(`Now playing ${nextSong.title}!`)
-        .setDescription(`Currently playing the song in ${serverQueue.voiceChannel}`)
-        .setThumbnail(`${nextSong.thumbnail}`)
-        .setTimestamp()
-    
-        interaction.channel.send({ embeds: [songEmbed] });
+            .setColor('#56CC23')
+            .setURL(`${nextSong.url}`)
+            .setTitle(`Now playing ${nextSong.title}!`)
+            .setDescription(`Currently playing the song in ${serverQueue.voiceChannel}`)
+            .setThumbnail(`${nextSong.thumbnail}`)
+            .setTimestamp()
+
+
         serverQueue.currentSong = nextItem;
+        serverQueue.textChannel.send({ embeds: [songEmbed] });
         play(guild, nextSong)
-        
+
     }
 }
 
