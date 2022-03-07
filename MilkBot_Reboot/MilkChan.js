@@ -61,6 +61,27 @@ client.on("ready", () => {
 const queue = new Map();
 //const subscriptions = new Map<Snowflake, MusicSubscription>();
 console.log(queue)
+/*
+client.on('messageCreate', message => {
+    if (message.author.bot) return;
+    // Certain maps
+    //const serverQueue = queue.get(message.guild.id);
+    if (message.content.includes('https://join.btd6.com/Coop/')) {
+        console.log();
+
+        var string = message.content
+        var matches = string.match(/\bhttps?:\/\/\S+/gi);
+        var adr = matches[0];
+        var q = url.parse(adr, true);
+        var codepath = q.pathname
+
+        //console.log(q.pathname); 
+        var code = codepath.replace("/Coop/", "");
+        console.log("This the code: " + code)
+        message.channel.send(code);
+    }
+});
+*/
 
 //const player = createAudioPlayer();
 //!Important
@@ -88,7 +109,7 @@ client.on('interactionCreate', async interaction => {
             //await interaction.reply('queue');
             //console.log(serverQueue)
             if (!serverQueue) {
-                await interaction.reply("Yah uh");
+                await interaction.reply("Nah, you can't check that");
 
             }
             else {
@@ -96,7 +117,7 @@ client.on('interactionCreate', async interaction => {
                 var listpos = 1;
 
                 const list = new MessageEmbed()
-                list.setTitle('Current Song Queue!')
+                list.setTitle('Current Music Queue on ' + `${interaction.guild.name}!`)
                 list.setColor('#000000')
                 for (let i = 0; i < songsArray.length; i++) {
                     if (serverQueue.currentSong == i) {
@@ -116,6 +137,9 @@ client.on('interactionCreate', async interaction => {
         case "skip":
             //await interaction.reply('skip command!')
             //getNextResource(guild, serverQueue.songs[serverQueue.currentSong + 1])
+            if (!serverQueue) {
+                await interaction.reply("You can't skip something that is");
+            }
             break;
         case "remove":
             const musicQueue = queue.get(interaction.guildId);
@@ -230,7 +254,7 @@ async function playFunc(interaction, serverQueue) {
     if (!serverQueue) {
 
         console.log('Not defined yet!')
-
+        //https://stackoverflow.com/questions/67353118/how-do-i-make-it-so-a-discord-music-bot-deletes-the-now-playing-message-after
         const queueContruct = {
             textChannel: interaction.channel,
             voiceChannel: voiceChannel,
@@ -238,6 +262,7 @@ async function playFunc(interaction, serverQueue) {
             audioPlayer: createAudioPlayer(),
             songs: [],
             volume: 5,
+            loop: 'disabled',
             //Added here to check the current song
             currentSong: 0,
             playing: true
@@ -263,7 +288,8 @@ async function playFunc(interaction, serverQueue) {
                 .setDescription(`Currently playing the song in ${queueContruct.voiceChannel}`)
                 .setThumbnail(`${song.thumbnail}`)
                 .setTimestamp()
-            play(interaction.guild, queueContruct.songs[queueContruct.currentSong]);
+            // queueContruct.currentSong
+            play(interaction.guild, queueContruct.songs[0]);
             await interaction.reply({ embeds: [songEmbed] });
 
 
@@ -283,15 +309,13 @@ async function playFunc(interaction, serverQueue) {
     else {
         // Add the song to the queue!
         serverQueue.songs.push(song);
-
-
-        if (serverQueue.playing == false) {
+        if (!serverQueue.playing) {
             serverQueue.playing = true;
             //console.log(serverQueue)
             const nextItem = serverQueue.currentSong + 1;
             const nextSong = serverQueue.songs[serverQueue.currentSong + 1]
             const songEmbed = new MessageEmbed()
-                .setColor('#ffffff')
+                .setColor('#34C5E3')
                 .setURL(`${nextSong.url}`)
                 .setTitle(`Playing ${nextSong.title}`)
                 .setDescription(`Currently playing the song in ${serverQueue.voiceChannel}`)
@@ -324,20 +348,8 @@ async function playFunc(interaction, serverQueue) {
 }
 // Play the next song!
 async function play(guild, song) {
+
     const serverQueue = queue.get(guild.id);
-    //Error checking for updates: connect ETIMEDOUT 140.82.121.5:443
-    //You can disable this check by setting the `YTDL_NO_UPDATE` env variable.
-    /*
-    if (!song) {
-        console.log("no song");
-        //serverQueue.voiceChannel.leave();
-        //queue.delete(guild.id);
-        //Probably put the variable "playing" at false when the queue
-        serverQueue.playing = false;
-        return;
-    }
-    else {
-        */
     console.log("go and play music!")
     //console.log(serverQueue)
     var stream = await ytdl(song.url, {
@@ -369,8 +381,9 @@ async function play(guild, song) {
     player.on(AudioPlayerStatus.Idle, () => {
         try {
             console.log("Idle");
-            if (serverQueue.playing == true) {
+            if (serverQueue.playing) {
                 getNextResource(guild, serverQueue.songs[serverQueue.currentSong + 1])
+                getNextSong(guild, song)
             }
             else {
                 serverQueue.playing = false;
@@ -387,16 +400,15 @@ async function play(guild, song) {
 
 async function getNextResource(guild, song) {
     const serverQueue = queue.get(guild.id);
-
     if (!song) {
         console.log("No more songs")
         serverQueue.playing = false;
-        //return;
+        return;
     }
     else {
-
         const nextItem = serverQueue.currentSong + 1;
-        const nextSong = serverQueue.songs[nextItem]
+        //const nextSong = serverQueue.songs[nextItem]
+        const nextSong = song;
         const songEmbed = new MessageEmbed()
             .setColor('#56CC23')
             .setURL(`${nextSong.url}`)
@@ -406,27 +418,49 @@ async function getNextResource(guild, song) {
             .setTimestamp()
 
 
-        serverQueue.currentSong = nextItem;
+
         serverQueue.textChannel.send({ embeds: [songEmbed] });
         play(guild, nextSong)
-
+        serverQueue.currentSong = nextItem;
     }
+
+
 }
+async function getNextSong(guild, song) {
+    const serverQueue = queue.get(guild.id);
+    let songQueue = serverQueue.songs;
+    const currentSong = serverQueue.songs[song];
+    var index = songQueue.indexOf(currentSong);
+    if (index >= 0 && index < songQueue.length - 1) {
+        var nextItem = songQueue[index + 1]
+        console.log("Next item: " + nextItem)
+    }
+    console.log("currentSpmg" + currentSong);
+
+}
+
 
 // Search for the song on Youtube otherwise just take the url and add that one.
 async function searchYouTubeAsync(args) {
+    // Check a fix for making the bot do "didn't" as it seems to fking error it"
+    // Added a temp fix for try catch block;
+    try {
+        var video = await youtube.searchVideos(args.toString().replace(/,/g, ' '));
+        var vidURL;
+        var regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|\?v=)([^#\&\?]*).*/;
+        var match = args.match(regExp);
+        if (match) {
+            vidURL = args;
+        }
+        else {
+            vidURL = "https://www.youtube.com/watch?v=" + video[0].raw.id.videoId;
+        }
+        return vidURL;
+    }
+    catch(e) {
+        console.log(e);      
+    }
 
-    var video = await youtube.searchVideos(args.toString().replace(/,/g, ' '));
-    var vidURL;
-    var regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|\?v=)([^#\&\?]*).*/;
-    var match = args.match(regExp);
-    if (match) {
-        vidURL = args;
-    }
-    else {
-        vidURL = "https://www.youtube.com/watch?v=" + video[0].raw.id.videoId;
-    }
-    return vidURL;
 }
 
 client.login(token)
