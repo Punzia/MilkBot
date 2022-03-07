@@ -51,16 +51,39 @@ var qArray = [];
 client.on("ready", () => {
     console.log(`Logged in as ${client.user.tag}!`);
     //client.user.
-
+    
     client.user.setActivity("music🎶", {
         status: 'idle',
         type: "LISTENING"
     });
+    
+    const activities = [
+        {
+            type: "WATCHING",
+            activity: "Loba's 🍑"
+        },
+        {
+            type: "LISTENING",
+            activity: "music 🎶"
+        }
+
+    ];
+
+    const timeoutForNms = 3600000; // 10 seocnds
+    let currentActivity = 0;
+    setInterval(() => {
+        console.log('set activity to %s type to %s', activities[currentActivity].activity, activities[currentActivity].type);
+        client.user.setActivity(`${activities[currentActivity].activity}`, { type: `${activities[currentActivity].type}` });
+        currentActivity++;
+        if (currentActivity === activities.length) {
+            currentActivity = 0;
+        }
+    }, timeoutForNms);
 });
 
 const queue = new Map();
 //const subscriptions = new Map<Snowflake, MusicSubscription>();
-console.log(queue)
+//console.log(queue)
 /*
 client.on('messageCreate', message => {
     if (message.author.bot) return;
@@ -115,16 +138,31 @@ client.on('interactionCreate', async interaction => {
             else {
                 var songsArray = serverQueue.songs;
                 var listpos = 1;
-
+                //https://www.youtube.com/watch?v=GGQjxyrcMPA
                 const list = new MessageEmbed()
-                list.setTitle('Current Music Queue on ' + `${interaction.guild.name}!`)
+                list.setAuthor({ name: '🥛', iconURL: 'https://i.imgur.com/QAUd9iD.png', url: 'https://punzia.com' })
+                list.setDescription("This is the currently playing queue on this server!")
+                list.setTitle('Current Music Queue in ' + `${interaction.guild.name}!`)
+                list.setURL('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
                 list.setColor('#000000')
                 for (let i = 0; i < songsArray.length; i++) {
-                    if (serverQueue.currentSong == i) {
-                        list.addField(`**${listpos}.) **` + `${songsArray[i].title}` + "```(PLAYING RIGHT NOW!)```", `${songsArray[i].url}`, false)
+                    if (serverQueue.currentSong == i && serverQueue.playing) {
+                        list.addFields(
+
+                            { name: `**${listpos}.) **` + "```(PLAYING RIGHT NOW!)```", value: `${songsArray[i].title}`, inline: true },
+                            { name: 'Time', value: secondsToHms(songsArray[i].timelength), inline: true },
+                            //{ name: '\u200B', value: '\u200B' },
+                            { name: 'Link', value: `${songsArray[i].url}`, inline: true },
+                        )
                     }
                     else {
-                        list.addField(`**${listpos}) **` + `${songsArray[i].title}`, `${songsArray[i].url}`, false)
+                        //list.addField(`**${listpos}) **` + `${songsArray[i].title}`, `${songsArray[i].url}`, false)
+                        list.addFields(
+                            { name: `**${listpos}.) **`, value: `${songsArray[i].title}`, inline: true },
+                            { name: 'Time', value: secondsToHms(songsArray[i].timelength), inline: true },
+                            //{ name: '\u200B', value: '\u200B' },
+                            { name: 'Link', value: `${songsArray[i].url}`, inline: true },
+                        )
                     }
 
                     listpos++;
@@ -244,11 +282,13 @@ async function playFunc(interaction, serverQueue) {
 
     let url = await searchYouTubeAsync(query);
     let songInfo = await ytdl.getInfo(url);
+    //console.log(songInfo)
 
     const song = {
         title: songInfo.videoDetails.title,
         url: songInfo.videoDetails.video_url,
         thumbnail: songInfo.videoDetails.thumbnails[2].url,
+        timelength: songInfo.videoDetails.lengthSeconds
     };
 
     if (!serverQueue) {
@@ -398,6 +438,7 @@ async function play(guild, song) {
 
 
 
+
 async function getNextResource(guild, song) {
     const serverQueue = queue.get(guild.id);
     if (!song) {
@@ -439,6 +480,17 @@ async function getNextSong(guild, song) {
 
 }
 
+function secondsToHms(d) {
+    d = Number(d);
+    var h = Math.floor(d / 3600);
+    var m = Math.floor(d % 3600 / 60);
+    var s = Math.floor(d % 3600 % 60);
+
+    var hDisplay = h > 0 ? h + (h == 1 ? " hour, " : ":") : "";
+    var mDisplay = m > 0 ? m + (m == 1 ? " minute, " : ":") : "";
+    var sDisplay = s > 0 ? s + (s == 1 ? " second" : " seconds ") : "";
+    return hDisplay + mDisplay + sDisplay;
+}
 
 // Search for the song on Youtube otherwise just take the url and add that one.
 async function searchYouTubeAsync(args) {
@@ -457,8 +509,8 @@ async function searchYouTubeAsync(args) {
         }
         return vidURL;
     }
-    catch(e) {
-        console.log(e);      
+    catch (e) {
+        console.log(e);
     }
 
 }
