@@ -4,6 +4,7 @@ const { Opus } = require('@discordjs/opus');
 const _sodium = require('libsodium-wrappers');
 const wait = require('util').promisify(setTimeout);
 const {
+    voice,
     joinVoiceChannel,
     createAudioPlayer,
     createAudioResource,
@@ -51,12 +52,12 @@ var qArray = [];
 client.on("ready", () => {
     console.log(`Logged in as ${client.user.tag}!`);
     //client.user.
-    
+
     client.user.setActivity("music🎶", {
         status: 'idle',
         type: "LISTENING"
     });
-    
+
     const activities = [
         {
             type: "WATCHING",
@@ -126,6 +127,15 @@ client.on('interactionCreate', async interaction => {
         case "leave":
             //leaveQueue();
             console.log('Leave');
+            const voiceChannel = interaction.member.voice.channel;
+
+            if (!voiceChannel) {
+                return await interaction.reply("I'm sorry, but you must be in a voice channel!");
+            }
+            await interaction.reply("Fine B-Baka!")
+            //serverQueue.voiceChannel.disconnect();
+            getVoiceConnection(interaction.guildId).disconnect();
+            queue.delete(interaction.guildId);
 
             break;
         case "queue":
