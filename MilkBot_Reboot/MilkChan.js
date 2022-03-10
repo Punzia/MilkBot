@@ -20,7 +20,10 @@ const ffmpeg = require("ffmpeg-static")
 const avconv = require("avconv")
 const fs = require('fs');
 const { OpusEncoder } = require('@discordjs/opus');
-
+//const emitter = new EventEmitter()
+// or 0 to turn off the limit
+//require('events').EventEmitter.prototype._maxListeners = 0;
+process.setMaxListeners(0);
 
 const ytdl = require('ytdl-core-discord');
 //const ytdl = require('play-dl');
@@ -51,8 +54,9 @@ var qArray = [];
 
 client.on("ready", () => {
     console.log(`Logged in as ${client.user.tag}!`);
-    //client.user.
 
+    //client.user.
+    /*
     client.user.setActivity("music🎶", {
         status: 'idle',
         type: "LISTENING"
@@ -80,6 +84,7 @@ client.on("ready", () => {
             currentActivity = 0;
         }
     }, timeoutForNms);
+    */
 });
 
 const queue = new Map();
@@ -115,11 +120,13 @@ client.on('interactionCreate', async interaction => {
 
     const { commandName } = interaction;
     const serverQueue = queue.get(interaction.guildId);
+    const voiceChannel = interaction.member.voice.channel;
     //const collector = interaction.channel.createMessageComponentCollector({ filter, time: 15000 });
     //const channel = interaction.member.voice.channel;
 
 
     switch (commandName) {
+
         case "play":
             // Time to play music!
             playFunc(interaction, serverQueue)
@@ -127,15 +134,19 @@ client.on('interactionCreate', async interaction => {
         case "leave":
             //leaveQueue();
             console.log('Leave');
-            const voiceChannel = interaction.member.voice.channel;
 
-            if (!voiceChannel) {
-                return await interaction.reply("I'm sorry, but you must be in a voice channel!");
+
+            if (!voiceChannel && serverQueue) {
+                return await interaction.reply("Don't mess with the people vibing");
             }
-            await interaction.reply("Fine B-Baka!")
-            //serverQueue.voiceChannel.disconnect();
+            if (!serverQueue) {
+                return await interaction.reply("There is no queue currently playing!");
+            }
             getVoiceConnection(interaction.guildId).disconnect();
             queue.delete(interaction.guildId);
+            await interaction.reply("Fine B-Baka!")
+
+
 
             break;
         case "queue":
@@ -147,7 +158,7 @@ client.on('interactionCreate', async interaction => {
             }
             else {
                 var songsArray = serverQueue.songs;
-                var listpos = 1;
+                var listpos = 0;
                 //https://www.youtube.com/watch?v=GGQjxyrcMPA
                 const list = new MessageEmbed()
                 list.setAuthor({ name: '🥛', iconURL: 'https://i.imgur.com/QAUd9iD.png', url: 'https://punzia.com' })
@@ -156,11 +167,12 @@ client.on('interactionCreate', async interaction => {
                 list.setURL('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
                 list.setColor('#000000')
                 for (let i = 0; i < songsArray.length; i++) {
+                    listpos++;
                     if (serverQueue.currentSong == i && serverQueue.playing) {
                         list.addFields(
 
                             { name: `**${listpos}.) **` + "```(PLAYING RIGHT NOW!)```", value: `${songsArray[i].title}`, inline: true },
-                            { name: 'Time', value: secondsToHms(songsArray[i].timelength), inline: true },
+                            { name: 'Time', value: convertTime(songsArray[i].timelength), inline: true },
                             //{ name: '\u200B', value: '\u200B' },
                             { name: 'Link', value: `${songsArray[i].url}`, inline: true },
                         )
@@ -169,13 +181,13 @@ client.on('interactionCreate', async interaction => {
                         //list.addField(`**${listpos}) **` + `${songsArray[i].title}`, `${songsArray[i].url}`, false)
                         list.addFields(
                             { name: `**${listpos}.) **`, value: `${songsArray[i].title}`, inline: true },
-                            { name: 'Time', value: secondsToHms(songsArray[i].timelength), inline: true },
+                            { name: 'Time', value: convertTime(songsArray[i].timelength), inline: true },
                             //{ name: '\u200B', value: '\u200B' },
                             { name: 'Link', value: `${songsArray[i].url}`, inline: true },
                         )
                     }
 
-                    listpos++;
+                    
                 }
                 await interaction.reply({ embeds: [list] });
             }
@@ -254,6 +266,19 @@ client.on('interactionCreate', async interaction => {
             await interaction.reply('Stopping the queue!')
             serverQueue.audioPlayer.stop()
             break;
+        case "loop":
+            //const voiceChannel = interaction.member.voice.channel;
+
+            if (!serverQueue) {
+                await interaction.reply("There is no queue to loop!");
+            }
+            if (!voiceChannel) {
+                return await interaction.reply("You aren't in the voice channel currently!");
+            }
+            serverQueue.loop = true;
+            await interaction.reply("Enabling loop!");
+
+            break;
     }
 });
 
@@ -312,7 +337,7 @@ async function playFunc(interaction, serverQueue) {
             audioPlayer: createAudioPlayer(),
             songs: [],
             volume: 5,
-            loop: 'disabled',
+            loop: false,
             //Added here to check the current song
             currentSong: 0,
             playing: true
@@ -332,6 +357,7 @@ async function playFunc(interaction, serverQueue) {
             })
             queueContruct.connection = connection;
             const songEmbed = new MessageEmbed()
+                .setAuthor({ name: '🥛', iconURL: 'https://i.imgur.com/QAUd9iD.png', url: 'https://punzia.com' })
                 .setColor('#34C5E3')
                 .setURL(`${song.url}`)
                 .setTitle(`Playing ${song.title}`)
@@ -365,6 +391,7 @@ async function playFunc(interaction, serverQueue) {
             const nextItem = serverQueue.currentSong + 1;
             const nextSong = serverQueue.songs[serverQueue.currentSong + 1]
             const songEmbed = new MessageEmbed()
+                .setAuthor({ name: '🥛', iconURL: 'https://i.imgur.com/QAUd9iD.png', url: 'https://punzia.com' })
                 .setColor('#34C5E3')
                 .setURL(`${nextSong.url}`)
                 .setTitle(`Playing ${nextSong.title}`)
@@ -383,6 +410,7 @@ async function playFunc(interaction, serverQueue) {
             //console.log(serverQueue.songs);
             console.log("Adding to the queue!")
             const addedSong = new MessageEmbed()
+                .setAuthor({ name: '🥛', iconURL: 'https://i.imgur.com/QAUd9iD.png', url: 'https://punzia.com' })
                 .setColor('#D427FA')
                 .setURL(`${song.url}`)
                 .setTitle(`Queued ${song.title}`)
@@ -401,7 +429,52 @@ async function play(guild, song) {
 
     const serverQueue = queue.get(guild.id);
     console.log("go and play music!")
-    //console.log(serverQueue)
+
+    const player = serverQueue.audioPlayer;
+    /*
+    if (!song) {     
+        // Check on shift currently! Change the code to push the first song last.      
+        console.log("No song")
+        serverQueue.playing = false;
+        return player.stop();
+    }*/
+    
+    
+    //player.play(resource);
+    serverQueue.connection.subscribe(player)
+    var resource = await createResource(song)
+    //console.log(resource1);
+    serverQueue.playing = true;
+    console.log("Player is playing")
+    player.play(resource);
+    
+
+    player.on('error', error => {
+        console.error(error);
+    });
+
+    
+    player.on(AudioPlayerStatus.Idle, async () => {
+        console.log("Ended");
+       
+        try {
+            console.log("Idle");
+            var nextSong = await getNextSong(guild, song)
+            var resource = await createResource(nextSong);
+            player.play(resource)     
+
+        }
+        catch (e) {
+            console.log(e)
+        }
+        
+    });
+    //}
+}
+
+async function createResource(song) {
+    console.log(song);
+    //console.log("Playing this one!", song.url)   
     var stream = await ytdl(song.url, {
         filter: 'audioonly',
         highWaterMark: 1 << 25,
@@ -412,94 +485,55 @@ async function play(guild, song) {
         inlineVolume: true
     });
     resource.volume.setVolume(1);
-    // Get next song!
-    //Get the next song in queue and then launch the play function (Needs to get fixed)
-
-    /*
-    Probably function that gets the song instead and add stream and resource and return resource back to play it;
-    player.on(AudioPlayerStatus.Idle, () => {
-        player.play(getNextResource());
-    });
-    
-    */
-
-    const player = serverQueue.audioPlayer;
-    serverQueue.connection.subscribe(player)
-
-    player.play(resource);
-
-    player.on(AudioPlayerStatus.Idle, () => {
-        try {
-            console.log("Idle");
-            if (serverQueue.playing) {
-                getNextResource(guild, serverQueue.songs[serverQueue.currentSong + 1])
-                getNextSong(guild, song)
-            }
-            else {
-                serverQueue.playing = false;
-            }
-        }
-        catch (e) {
-            console.log(e)
-        }
-    });
-    //}
+    return resource;
 }
 
-
-
-
-async function getNextResource(guild, song) {
-    const serverQueue = queue.get(guild.id);
-    if (!song) {
-        console.log("No more songs")
-        serverQueue.playing = false;
-        return;
-    }
-    else {
-        const nextItem = serverQueue.currentSong + 1;
-        //const nextSong = serverQueue.songs[nextItem]
-        const nextSong = song;
-        const songEmbed = new MessageEmbed()
-            .setColor('#56CC23')
-            .setURL(`${nextSong.url}`)
-            .setTitle(`Now playing ${nextSong.title}!`)
-            .setDescription(`Currently playing the song in ${serverQueue.voiceChannel}`)
-            .setThumbnail(`${nextSong.thumbnail}`)
-            .setTimestamp()
-
-
-
-        serverQueue.textChannel.send({ embeds: [songEmbed] });
-        play(guild, nextSong)
-        serverQueue.currentSong = nextItem;
-    }
-
-
-}
+// Maybe remove the async thing here if the thing doeesn't work!;
 async function getNextSong(guild, song) {
-    const serverQueue = queue.get(guild.id);
-    let songQueue = serverQueue.songs;
-    const currentSong = serverQueue.songs[song];
-    var index = songQueue.indexOf(currentSong);
-    if (index >= 0 && index < songQueue.length - 1) {
-        var nextItem = songQueue[index + 1]
-        console.log("Next item: " + nextItem)
+    var serverQueue = queue.get(guild.id);
+    var songQueue = serverQueue.songs;
+    var index = songQueue.indexOf(song);
+    
+    try {
+        if (index >= 0 && index < songQueue.length - 1) {
+            var nextSong = songQueue[index + 1]
+        }
+        
+        if (!nextSong) {
+            
+            if (serverQueue.loop) {
+                console.log(serverQueue.loop);
+                songQueue.push(songQueue[0])
+                songQueue.shift();
+                var resource = songQueue[0]
+                //console.log(resource)
+                return resource 
+            } 
+            console.log("Stop")
+            serverQueue.playing = false;   
+            return serverQueue.player.stop();
+        }
+        console.log("Next song!")
+        return nextSong;
     }
-    console.log("currentSpmg" + currentSong);
+    catch (e) {
+        console.log(e)
+    }
+
 
 }
 
-function secondsToHms(d) {
-    d = Number(d);
-    var h = Math.floor(d / 3600);
-    var m = Math.floor(d % 3600 / 60);
-    var s = Math.floor(d % 3600 % 60);
+function convertTime(sec) {
+    var hours = Math.floor(sec / 3600);
+    (hours >= 1) ? sec = sec - (hours * 3600) : hours = '00';
+    var min = Math.floor(sec / 60);
+    (min >= 1) ? sec = sec - (min * 60) : min = '00';
+    (sec < 1) ? sec = '00' : void 0;
 
-    var hDisplay = h > 0 ? h + (h == 1 ? " hour, " : ":") : "";
-    var mDisplay = m > 0 ? m + (m == 1 ? " minute, " : ":") : "";
-    var sDisplay = s > 0 ? s + (s == 1 ? " second" : " seconds ") : "";
-    return hDisplay + mDisplay + sDisplay;
+    (min.toString().length == 1) ? min = '0' + min : void 0;
+    (sec.toString().length == 1) ? sec = '0' + sec : void 0;
+
+    return hours + ':' + min + ':' + sec;
 }
 
 // Search for the song on Youtube otherwise just take the url and add that one.
