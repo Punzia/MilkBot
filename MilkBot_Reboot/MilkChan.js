@@ -187,7 +187,7 @@ client.on('interactionCreate', async interaction => {
                         )
                     }
 
-                    
+
                 }
                 await interaction.reply({ embeds: [list] });
             }
@@ -263,8 +263,9 @@ client.on('interactionCreate', async interaction => {
             //queueContruct.songs.splice(args[0] - 1);
             break;
         case "stop":
-            await interaction.reply('Stopping the queue!')
+            serverQueue.playing = false;
             serverQueue.audioPlayer.stop()
+            await interaction.reply('Stopping the queue!')
             break;
         case "loop":
             //const voiceChannel = interaction.member.voice.channel;
@@ -274,6 +275,10 @@ client.on('interactionCreate', async interaction => {
             }
             if (!voiceChannel) {
                 return await interaction.reply("You aren't in the voice channel currently!");
+            }
+            if (serverQueue.loop) {
+                serverQueue.loop = false;
+                await interaction.reply("Disabling loop now!");
             }
             serverQueue.loop = true;
             await interaction.reply("Enabling loop!");
@@ -297,12 +302,6 @@ async function skip(interaction, serverQueue) {
     }
     //serverQueue.connection.dispatcher.end();
 }
-
-async function leaveQueue(interaction, serverQueue) {
-    console.log("leave!")
-}
-
-
 async function playFunc(interaction, serverQueue) {
     const query = interaction.options.get("query").value;
 
@@ -367,18 +366,12 @@ async function playFunc(interaction, serverQueue) {
             // queueContruct.currentSong
             play(interaction.guild, queueContruct.songs[0]);
             await interaction.reply({ embeds: [songEmbed] });
-
-
             //await guild.interaction.reply('hi')
             //Before
             //play(interaction.guild, queueContruct.songs[0]);
-
-
         } catch (err) {
             console.log(err);
             return interaction.channel.send("I'm sorry some error occured")
-            //queue.delete(message.guild.id);
-            //return message.channel.send(err);
         }
 
     }
@@ -403,8 +396,6 @@ async function playFunc(interaction, serverQueue) {
 
             serverQueue.currentSong = nextItem;
             play(interaction.guild, nextSong);
-
-
         }
         else {
             //console.log(serverQueue.songs);
@@ -438,8 +429,8 @@ async function play(guild, song) {
         serverQueue.playing = false;
         return player.stop();
     }*/
-    
-    
+
+
     //player.play(resource);
     serverQueue.connection.subscribe(player)
     var resource = await createResource(song)
@@ -447,27 +438,32 @@ async function play(guild, song) {
     serverQueue.playing = true;
     console.log("Player is playing")
     player.play(resource);
-    
+
 
     player.on('error', error => {
         console.error(error);
     });
 
-    
+
     player.on(AudioPlayerStatus.Idle, async () => {
         console.log("Ended");
-       
+
         try {
             console.log("Idle");
-            var nextSong = await getNextSong(guild, song)
-            var resource = await createResource(nextSong);
-            player.play(resource)     
+            if (serverQueue.playing) {
+                var nextSong = await getNextSong(guild, song)
+                var resource = await createResource(nextSong);
+                player.play(resource)
+
+            }
+            serverQueue.playing = false;
+            player.stop();
 
         }
         catch (e) {
             console.log(e)
         }
-        
+
     });
     //}
 }
@@ -493,25 +489,26 @@ async function getNextSong(guild, song) {
     var serverQueue = queue.get(guild.id);
     var songQueue = serverQueue.songs;
     var index = songQueue.indexOf(song);
-    
+
     try {
         if (index >= 0 && index < songQueue.length - 1) {
             var nextSong = songQueue[index + 1]
         }
-        
+
         if (!nextSong) {
-            
+
             if (serverQueue.loop) {
                 console.log(serverQueue.loop);
                 songQueue.push(songQueue[0])
                 songQueue.shift();
                 var resource = songQueue[0]
                 //console.log(resource)
-                return resource 
-            } 
+                return resource
+            }
             console.log("Stop")
-            serverQueue.playing = false;   
-            return serverQueue.player.stop();
+            
+            //serverQueue.audioPlayer.stop();
+            return serverQueue.playing = false
         }
         console.log("Next song!")
         return nextSong;
