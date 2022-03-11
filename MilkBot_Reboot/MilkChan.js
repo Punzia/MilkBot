@@ -378,24 +378,27 @@ async function playFunc(interaction, serverQueue) {
     else {
         // Add the song to the queue!
         serverQueue.songs.push(song);
+        
         if (!serverQueue.playing) {
+            console.log(song);
             serverQueue.playing = true;
+            
             //console.log(serverQueue)
-            const nextItem = serverQueue.currentSong + 1;
-            const nextSong = serverQueue.songs[serverQueue.currentSong + 1]
+            //const nextItem = serverQueue.currentSong + 1;
+            //const nextSong = serverQueue.songs[serverQueue.currentSong + 1]
             const songEmbed = new MessageEmbed()
                 .setAuthor({ name: '🥛', iconURL: 'https://i.imgur.com/QAUd9iD.png', url: 'https://punzia.com' })
                 .setColor('#34C5E3')
-                .setURL(`${nextSong.url}`)
-                .setTitle(`Playing ${nextSong.title}`)
+                .setURL(`${song.url}`)
+                .setTitle(`Playing ${song.title}`)
                 .setDescription(`Currently playing the song in ${serverQueue.voiceChannel}`)
-                .setThumbnail(`${nextSong.thumbnail}`)
+                .setThumbnail(`${song.thumbnail}`)
                 .setTimestamp()
 
             await interaction.reply({ embeds: [songEmbed] });
-
+            // It was next song lmaooo!
             serverQueue.currentSong = nextItem;
-            play(interaction.guild, nextSong);
+            play(interaction.guild, song);
         }
         else {
             //console.log(serverQueue.songs);
@@ -452,13 +455,16 @@ async function play(guild, song) {
             console.log("Idle");
             if (serverQueue.playing) {
                 var nextSong = await getNextSong(guild, song)
+                console.log(nextSong)
+                if (!nextSong) {
+                    serverQueue.playing = false;
+                    player.stop();
+                }
                 var resource = await createResource(nextSong);
                 player.play(resource)
 
-            }
-            serverQueue.playing = false;
-            player.stop();
 
+            }
         }
         catch (e) {
             console.log(e)
@@ -469,7 +475,7 @@ async function play(guild, song) {
 }
 
 async function createResource(song) {
-    console.log(song);
+
     //console.log("Playing this one!", song.url)   
     var stream = await ytdl(song.url, {
         filter: 'audioonly',
@@ -489,35 +495,36 @@ async function getNextSong(guild, song) {
     var serverQueue = queue.get(guild.id);
     var songQueue = serverQueue.songs;
     var index = songQueue.indexOf(song);
+    //const lastItem = songQueue[songQueue.length - 1]
 
     try {
         if (index >= 0 && index < songQueue.length - 1) {
             var nextSong = songQueue[index + 1]
         }
-
+        if (serverQueue.loop) {
+            console.log(serverQueue.loop);
+            songQueue.push(songQueue[0])
+            songQueue.shift();
+            var resource = songQueue[0]
+            //console.log(resource)
+            serverQueue.currentSong = songQueue.indexOf(resource);
+            return resource;
+        }
         if (!nextSong) {
 
-            if (serverQueue.loop) {
-                console.log(serverQueue.loop);
-                songQueue.push(songQueue[0])
-                songQueue.shift();
-                var resource = songQueue[0]
-                //console.log(resource)
-                return resource
-            }
+            console.log(nextSong)
             console.log("Stop")
-            
-            //serverQueue.audioPlayer.stop();
-            return serverQueue.playing = false
+            return false;
         }
-        console.log("Next song!")
-        return nextSong;
+        else {
+            serverQueue.currentSong = songQueue.indexOf(nextSong);
+            console.log("Next song!")
+            return nextSong;
+        }
     }
     catch (e) {
         console.log(e)
     }
-
-
 }
 
 function convertTime(sec) {
