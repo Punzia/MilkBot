@@ -1,4 +1,4 @@
-const { Client, Intents, MessageEmbed, MessageActionRow, Permissions, VoiceChannel, Channel } = require('discord.js');
+const { Client, Intents, MessageEmbed, MessageActionRow, MessageButton, Permissions, VoiceChannel, Channel } = require('discord.js');
 const client = new Client({ intents: ["GUILDS", "GUILD_MESSAGES", "GUILD_VOICE_STATES"] });
 const { Opus } = require('@discordjs/opus');
 const _sodium = require('libsodium-wrappers');
@@ -18,13 +18,9 @@ const {
 const { youtubeAPI, token } = require('./config.json');
 const ffmpeg = require("ffmpeg-static")
 const avconv = require("avconv")
-const fs = require('fs');
+//const fs = require('fs');
 const { OpusEncoder } = require('@discordjs/opus');
-//const emitter = new EventEmitter()
-// or 0 to turn off the limit
-//require('events').EventEmitter.prototype._maxListeners = 0;
-process.setMaxListeners(0);
-
+//process.setMaxListeners(0);
 const ytdl = require('ytdl-core-discord');
 //const ytdl = require('play-dl');
 //const { video_basic_info, stream } = require('play-dl');
@@ -35,22 +31,16 @@ const { validateID } = require('ytdl-core');
 const { inflateRaw } = require('zlib');
 const { once } = require('events');
 const { executionAsyncResource } = require('async_hooks');
-const { MessageButton } = require('discord.js');
 const youtube = new Youtube(youtubeAPI);
-//const options = { transports: ['websocket'], pingTimeout: 3000, pingInterval: 5000 };
-
 
 
 //Define the channel and dispatcher for music.
-var channel;
+//var channel;
 
 
-//const serverQueue = queue.get(message.guild.id);
-// Has to do with songs and such ->
 
-var qArray = [];
+const queue = new Map();
 
-//var queue = new Map();
 
 client.on("ready", () => {
     console.log(`Logged in as ${client.user.tag}!`);
@@ -87,7 +77,7 @@ client.on("ready", () => {
     */
 });
 
-const queue = new Map();
+
 //const subscriptions = new Map<Snowflake, MusicSubscription>();
 //console.log(queue)
 /*
@@ -112,7 +102,6 @@ client.on('messageCreate', message => {
 });
 */
 
-//const player = createAudioPlayer();
 //!Important
 //var servers = {};
 client.on('interactionCreate', async interaction => {
@@ -134,8 +123,6 @@ client.on('interactionCreate', async interaction => {
         case "leave":
             //leaveQueue();
             console.log('Leave');
-
-
             if (!voiceChannel && serverQueue) {
                 return await interaction.reply("Don't mess with the people vibing");
             }
@@ -146,15 +133,12 @@ client.on('interactionCreate', async interaction => {
             queue.delete(interaction.guildId);
             await interaction.reply("Fine B-Baka!")
 
-
-
             break;
         case "queue":
             //await interaction.reply('queue');
             //console.log(serverQueue)
             if (!serverQueue) {
                 await interaction.reply("Nah, you can't check that");
-
             }
             else {
                 var songsArray = serverQueue.songs;
@@ -170,20 +154,17 @@ client.on('interactionCreate', async interaction => {
                     listpos++;
                     if (serverQueue.currentSong == i && serverQueue.playing) {
                         list.addFields(
-
                             { name: `**${listpos}.) **` + "```(PLAYING RIGHT NOW!)```", value: `${songsArray[i].title}`, inline: true },
-                            { name: 'Time', value: convertTime(songsArray[i].timelength), inline: true },
-                            //{ name: '\u200B', value: '\u200B' },
                             { name: 'Link', value: `${songsArray[i].url}`, inline: true },
+                            { name: 'Time', value: convertTime(songsArray[i].timelength), inline: true },
                         )
                     }
                     else {
-                        //list.addField(`**${listpos}) **` + `${songsArray[i].title}`, `${songsArray[i].url}`, false)
                         list.addFields(
                             { name: `**${listpos}.) **`, value: `${songsArray[i].title}`, inline: true },
-                            { name: 'Time', value: convertTime(songsArray[i].timelength), inline: true },
-                            //{ name: '\u200B', value: '\u200B' },
                             { name: 'Link', value: `${songsArray[i].url}`, inline: true },
+                            { name: 'Time', value: convertTime(songsArray[i].timelength), inline: true },
+
                         )
                     }
 
@@ -378,11 +359,11 @@ async function playFunc(interaction, serverQueue) {
     else {
         // Add the song to the queue!
         serverQueue.songs.push(song);
-        
+
         if (!serverQueue.playing) {
             console.log(song);
             serverQueue.playing = true;
-            
+
             //console.log(serverQueue)
             //const nextItem = serverQueue.currentSong + 1;
             //const nextSong = serverQueue.songs[serverQueue.currentSong + 1]
@@ -397,7 +378,7 @@ async function playFunc(interaction, serverQueue) {
 
             await interaction.reply({ embeds: [songEmbed] });
             // It was next song lmaooo!
-            serverQueue.currentSong = nextItem;
+            serverQueue.currentSong = serverQueue.songs.indexOf(song);
             play(interaction.guild, song);
         }
         else {
@@ -423,110 +404,89 @@ async function play(guild, song) {
 
     const serverQueue = queue.get(guild.id);
     console.log("go and play music!")
-
     const player = serverQueue.audioPlayer;
-    /*
-    if (!song) {     
-        // Check on shift currently! Change the code to push the first song last.      
-        console.log("No song")
-        serverQueue.playing = false;
-        return player.stop();
-    }*/
 
-
-    //player.play(resource);
     serverQueue.connection.subscribe(player)
-    var resource = await createResource(song)
-    //console.log(resource1);
-    serverQueue.playing = true;
-    console.log("Player is playing")
+    
+    var resource = await createResource(song);
     player.play(resource);
-
 
     player.on('error', error => {
         console.error(error);
     });
 
-
     player.on(AudioPlayerStatus.Idle, async () => {
         console.log("Ended");
-
+        //songQueue = serverQueue.songs;
+        // If the song doesn't appear to work maybe it's time to just make it define a new song song +1 and then get the next song considering id or just
+        // Return +1 on each song but idk.
         try {
-            console.log("Idle");
-            if (serverQueue.playing) {
-                var nextSong = await getNextSong(guild, song)
-                console.log(nextSong)
-                if (!nextSong) {
-                    serverQueue.playing = false;
-                    player.stop();
-                }
-                var resource = await createResource(nextSong);
-                player.play(resource)
-
-
+            //var nextSong = await getNextSong(guild, song)
+            var nextSong = getNextResource(guild)
+            //console.log(nextSong)
+            if (!nextSong) {
+                console.log("Noo")
+                serverQueue.playing = false;
+                player.stop();
             }
+            else {
+                var getNextSong = await createResource(nextSong);
+                player.play(getNextSong)
+            }
+
         }
         catch (e) {
             console.log(e)
         }
-
     });
-    //}
 }
 
 async function createResource(song) {
-
+    console.log("Playing: " + song.title);
     //console.log("Playing this one!", song.url)   
-    var stream = await ytdl(song.url, {
-        filter: 'audioonly',
-        highWaterMark: 1 << 25,
-    });
+    try {
+        if (!song) { console.log("Some error I think :/") }
 
-    const resource = createAudioResource(stream, {
-        inputType: StreamType.Opus,
-        inlineVolume: true
-    });
-    resource.volume.setVolume(1);
-    return resource;
+        var stream = await ytdl(song.url, {
+            filter: 'audioonly',
+            highWaterMark: 1 << 25,
+        });
+
+        const resource = createAudioResource(stream, {
+            inputType: StreamType.Opus,
+            inlineVolume: true
+        });
+        resource.volume.setVolume(1);
+        return resource;
+    }
+    catch (err) {
+        console.log(err)
+    }
 }
 
-// Maybe remove the async thing here if the thing doeesn't work!;
-async function getNextSong(guild, song) {
+function getNextResource(guild) {
     var serverQueue = queue.get(guild.id);
     var songQueue = serverQueue.songs;
-    var index = songQueue.indexOf(song);
-    //const lastItem = songQueue[songQueue.length - 1]
+    var loop = serverQueue.loop;
+   
 
-    try {
-        if (index >= 0 && index < songQueue.length - 1) {
-            var nextSong = songQueue[index + 1]
-        }
-        if (serverQueue.loop) {
-            console.log(serverQueue.loop);
-            songQueue.push(songQueue[0])
-            songQueue.shift();
-            var resource = songQueue[0]
-            //console.log(resource)
-            serverQueue.currentSong = songQueue.indexOf(resource);
-            return resource;
-        }
-        if (!nextSong) {
-
-            console.log(nextSong)
-            console.log("Stop")
-            return false;
-        }
-        else {
-            serverQueue.currentSong = songQueue.indexOf(nextSong);
-            console.log("Next song!")
-            return nextSong;
-        }
+    if (loop) {
+        console.log("Loop")
+        songQueue.push(songQueue[0])
+        songQueue.shift();
+        //serverQueue.currentSong = songQueue.indexOf(resource);
+        //var startFrom = await createResource(resource);
+        var resource = songQueue[0]
+        return resource;
     }
-    catch (e) {
-        console.log(e)
+    else {
+        //var resource = songQueue[0]
+        songQueue.shift();
+        var resource = songQueue[0]
+        //var playNext = await createResource(resource);
+        return resource;
     }
 }
-
 function convertTime(sec) {
     var hours = Math.floor(sec / 3600);
     (hours >= 1) ? sec = sec - (hours * 3600) : hours = '00';
