@@ -32,10 +32,13 @@ const { inflateRaw } = require('zlib');
 const { once } = require('events');
 const { executionAsyncResource } = require('async_hooks');
 const youtube = new Youtube(youtubeAPI);
-
-
+const cron = require("cron");
+/*
+Og MILKBOT
+*/
 //Define the channel and dispatcher for music.
 //var channel;
+const milkbotAvatar = "https://i.imgur.com/1zAmUVJ.png"
 
 
 
@@ -46,7 +49,7 @@ client.on("ready", () => {
     console.log(`Logged in as ${client.user.tag}!`);
 
     //client.user.
-    /*
+
     client.user.setActivity("music🎶", {
         status: 'idle',
         type: "LISTENING"
@@ -63,44 +66,22 @@ client.on("ready", () => {
         }
 
     ];
-
-    const timeoutForNms = 3600000; // 10 seocnds
+    //Change the status!
     let currentActivity = 0;
-    setInterval(() => {
+    var statusCron = new cron.CronJob('0 * * * *', function () {
         console.log('set activity to %s type to %s', activities[currentActivity].activity, activities[currentActivity].type);
         client.user.setActivity(`${activities[currentActivity].activity}`, { type: `${activities[currentActivity].type}` });
         currentActivity++;
         if (currentActivity === activities.length) {
             currentActivity = 0;
         }
-    }, timeoutForNms);
-    */
+
+
+    });
+    statusCron.start();
+
 });
 
-
-//const subscriptions = new Map<Snowflake, MusicSubscription>();
-//console.log(queue)
-/*
-client.on('messageCreate', message => {
-    if (message.author.bot) return;
-    // Certain maps
-    //const serverQueue = queue.get(message.guild.id);
-    if (message.content.includes('https://join.btd6.com/Coop/')) {
-        console.log();
-
-        var string = message.content
-        var matches = string.match(/\bhttps?:\/\/\S+/gi);
-        var adr = matches[0];
-        var q = url.parse(adr, true);
-        var codepath = q.pathname
-
-        //console.log(q.pathname); 
-        var code = codepath.replace("/Coop/", "");
-        console.log("This the code: " + code)
-        message.channel.send(code);
-    }
-});
-*/
 
 //!Important
 //var servers = {};
@@ -145,9 +126,9 @@ client.on('interactionCreate', async interaction => {
                 var listpos = 0;
                 //https://www.youtube.com/watch?v=GGQjxyrcMPA
                 const list = new MessageEmbed()
-                list.setAuthor({ name: '🥛', iconURL: 'https://i.imgur.com/QAUd9iD.png', url: 'https://punzia.com' })
+                list.setAuthor({ name: '🥛', iconURL: milkbotAvatar, url: 'https://punzia.com' })
                 list.setDescription("This is the currently playing queue on this server!")
-                list.setTitle('Current Music Queue in ' + `${interaction.guild.name}!`)
+                list.setTitle('🎧 Current Music in ' + `${interaction.guild.name}! 🎶`)
                 list.setURL('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
                 list.setColor('#000000')
                 for (let i = 0; i < songsArray.length; i++) {
@@ -172,22 +153,39 @@ client.on('interactionCreate', async interaction => {
                 }
                 await interaction.reply({ embeds: [list] });
             }
-            const test = queue.get(interaction.guildId);
-            console.log(test)
+            //const test = serverQueue.songs;
+            console.log(songsArray)
             break;
         case "skip":
+
+            var loop = serverQueue.loop;
+            var songQueue = serverQueue.songs;
             //await interaction.reply('skip command!')
             //getNextResource(guild, serverQueue.songs[serverQueue.currentSong + 1])
-            if (!serverQueue) {
-                await interaction.reply("You can't skip something that is");
+            if (!serverQueue) return await interaction.reply("You can't skip something that doesn't exist!");
+            if (songQueue.length == 1) return await interaction.reply("You can't use skip when there is only one song in queue!");
+            if (loop) {
+                console.log("Loop skip!")
+
+                songQueue.push(songQueue[0])
+                songQueue.shift();
+
+                //serverQueue.audioPlayer.stop();     
+                play(interaction.guild);
+                return await interaction.reply("Skipping song! `(Currently looping the queue!)`");
             }
-            break;
+            else {
+                console.log("Skip songs!")
+                serverQueue.songs.shift();
+                play(interaction.guild);
+                return await interaction.reply("Skipping song!");
+            }
+        //serverQueue.playing = false;
         case "remove":
             const musicQueue = queue.get(interaction.guildId);
             const args = interaction.options.get('id').value;
-            //console.log(args[0]);
-            //var currentPlaying = serverQueue.currentSong;
-            //console.log(musicQueue.songs.length)
+            //const songQueue = serverQueue.songs;
+
             if (!musicQueue) {
                 return await interaction.reply('B-but there are no songs!')
             }
@@ -225,15 +223,31 @@ client.on('interactionCreate', async interaction => {
 
                 var _title = musicQueue.songs[args[0] - 1].title;
                 await interaction.reply({ content: `Want to me to remove ${_title}?`, components: [row] })
-                /*
+                //const collector = message.createMessageComponentCollector({ componentType: 'BUTTON', time: 15000 });
+                const filter = i => i.customId === 'Yes' || i.customId === 'No';
+
+                const collector = interaction.channel.createMessageComponentCollector({ filter, max: 1, time: 10000 });
+                
+
                 collector.on('collect', async i => {
-                    if (i.customId === 'primary') {
-                        await i.deferUpdate();
-                        await wait(4000);
-                        await i.editReply({ content: 'A button was clicked!', components: [] });
+                    if (i.customId === 'Yes') {
+                        
+                        //var rIndex = musicQueue.songs[args[0] - 1];
+                        console.log(args[0] - 1)
+                        //console.log(remove.title)
+                        //var name = queue.queue[args[0] - 1].name;
+                        
+                        await i.reply(`Removing song " ${musicQueue.songs[args[0] - 1].title}" now!`)
+                        musicQueue.songs.splice(args[0] - 1, 1);  
+                            
+                        
+                        
+                    }
+                    else {
+                      return await i.reply("Not removing song now!")
                     }
                 });
-                */
+
 
                 //collector.on('end', collected => console.log(`Collected ${collected.size} items`));
             }
@@ -245,9 +259,9 @@ client.on('interactionCreate', async interaction => {
             break;
         case "stop":
             serverQueue.playing = false;
+            serverQueue.loop = false;
             serverQueue.audioPlayer.stop()
-            await interaction.reply('Stopping the queue!')
-            break;
+            return await interaction.reply('Stopping the queue!')
         case "loop":
             //const voiceChannel = interaction.member.voice.channel;
 
@@ -259,7 +273,7 @@ client.on('interactionCreate', async interaction => {
             }
             if (serverQueue.loop) {
                 serverQueue.loop = false;
-                await interaction.reply("Disabling loop now!");
+                return await interaction.reply("Disabling loop now!");
             }
             serverQueue.loop = true;
             await interaction.reply("Enabling loop!");
@@ -268,21 +282,6 @@ client.on('interactionCreate', async interaction => {
     }
 });
 
-async function skip(interaction, serverQueue) {
-    console.log("-----------------------------------")
-    console.log(serverQueue.songs);
-
-    if (!interaction.member.voice.channel)
-        await interaction.reply(
-            "You have to be in a voice channel to stop the music!"
-        );
-    if (!serverQueue)
-        await interaction.reply("There is no song that I could skip!");
-    else {
-        getNextResource(interaction.guild.id);
-    }
-    //serverQueue.connection.dispatcher.end();
-}
 async function playFunc(interaction, serverQueue) {
     const query = interaction.options.get("query").value;
 
@@ -314,7 +313,6 @@ async function playFunc(interaction, serverQueue) {
             textChannel: interaction.channel,
             voiceChannel: voiceChannel,
             connection: null,
-            audioPlayer: createAudioPlayer(),
             songs: [],
             volume: 5,
             loop: false,
@@ -336,20 +334,8 @@ async function playFunc(interaction, serverQueue) {
                 adapterCreator: channel.guild.voiceAdapterCreator,
             })
             queueContruct.connection = connection;
-            const songEmbed = new MessageEmbed()
-                .setAuthor({ name: '🥛', iconURL: 'https://i.imgur.com/QAUd9iD.png', url: 'https://punzia.com' })
-                .setColor('#34C5E3')
-                .setURL(`${song.url}`)
-                .setTitle(`Playing ${song.title}`)
-                .setDescription(`Currently playing the song in ${queueContruct.voiceChannel}`)
-                .setThumbnail(`${song.thumbnail}`)
-                .setTimestamp()
-            // queueContruct.currentSong
-            play(interaction.guild, queueContruct.songs[0]);
-            await interaction.reply({ embeds: [songEmbed] });
-            //await guild.interaction.reply('hi')
-            //Before
-            //play(interaction.guild, queueContruct.songs[0]);
+            await interaction.reply("Starting music! UwU Milkies!")
+            play(interaction.guild);
         } catch (err) {
             console.log(err);
             return interaction.channel.send("I'm sorry some error occured")
@@ -358,17 +344,14 @@ async function playFunc(interaction, serverQueue) {
     }
     else {
         // Add the song to the queue!
-        serverQueue.songs.push(song);
+        //serverQueue.songs.push(song);
 
-        if (!serverQueue.playing) {
+        //if (serverQueue.playing == false) {
+        if (serverQueue.songs.length < 1) {
+            serverQueue.songs.push(song);
             console.log(song);
-            serverQueue.playing = true;
-
-            //console.log(serverQueue)
-            //const nextItem = serverQueue.currentSong + 1;
-            //const nextSong = serverQueue.songs[serverQueue.currentSong + 1]
             const songEmbed = new MessageEmbed()
-                .setAuthor({ name: '🥛', iconURL: 'https://i.imgur.com/QAUd9iD.png', url: 'https://punzia.com' })
+                .setAuthor({ name: '🥛', iconURL: milkbotAvatar, url: 'https://punzia.com' })
                 .setColor('#34C5E3')
                 .setURL(`${song.url}`)
                 .setTitle(`Playing ${song.title}`)
@@ -378,17 +361,21 @@ async function playFunc(interaction, serverQueue) {
 
             await interaction.reply({ embeds: [songEmbed] });
             // It was next song lmaooo!
+            serverQueue.playing = true;
             serverQueue.currentSong = serverQueue.songs.indexOf(song);
-            play(interaction.guild, song);
+            play(interaction.guild);
         }
         else {
             //console.log(serverQueue.songs);
+            // Push the song to queue if it's playing!
+            serverQueue.songs.push(song);
+
             console.log("Adding to the queue!")
             const addedSong = new MessageEmbed()
-                .setAuthor({ name: '🥛', iconURL: 'https://i.imgur.com/QAUd9iD.png', url: 'https://punzia.com' })
+                .setAuthor({ name: '🥛', iconURL: milkbotAvatar, url: 'https://punzia.com' })
                 .setColor('#D427FA')
                 .setURL(`${song.url}`)
-                .setTitle(`Queued ${song.title}`)
+                .setTitle(`⏭️ Queued ${song.title}`)
                 .setDescription('Song is now added to queue, check `/queue`to check current list!')
                 .setThumbnail(`${song.thumbnail}`)
                 .setTimestamp()
@@ -400,52 +387,105 @@ async function playFunc(interaction, serverQueue) {
 
 }
 // Play the next song!
-async function play(guild, song) {
+//const play = async (guild) => {
+async function play(guild) {
 
     const serverQueue = queue.get(guild.id);
     console.log("go and play music!")
-    const player = serverQueue.audioPlayer;
+    //const player = serverQueue.audioPlayer;
+    const player = createAudioPlayer();
 
-    serverQueue.connection.subscribe(player)
+    //var song = serverQueue.songs[0]
+    var resource = await createResource(serverQueue.songs[0]);
+
+    const subscription = serverQueue.connection.subscribe(player)
     
-    var resource = await createResource(song);
+    if (subscription) {
+        setTimeout(() => subscription.unsubscribe(), 5_000);
+    }
+    
+
+    //serverQueue.playing = true;
     player.play(resource);
 
-    player.on('error', error => {
-        console.error(error);
+
+    player.on(AudioPlayerStatus.Playing, async () => {
+        console.log("Playing!")
+        //const time = track.duration * 1000
+        
+        var _songp = serverQueue.songs[0];
+        console.log(_songp.timelength * 1000)
+        const songEmbed = new MessageEmbed()
+            .setAuthor({ name: '🥛', iconURL: milkbotAvatar, url: 'https://punzia.com' })
+            .setColor('#34C5E3')
+            .setURL(`${_songp.url}`)
+            .setTitle(`▶️ Now playing ${_songp.title}`)
+            .setDescription(`Currently playing the song in ${serverQueue.voiceChannel}`)
+            .setThumbnail(`${_songp.thumbnail}`)
+            .setTimestamp()
+        /*
+        const time = track.duration * 1000
+        message.channel.send('your-message').then(m => setTimeout({
+        m.delete }, time))
+ 
+        */
+
+        //await serverQueue.textChannel.send(`Playing \`${serverQueue.songs[0].title}\``)
+        await serverQueue.textChannel.send({ embeds: [songEmbed] })
+        /*
+        .then(m => setTimeout({
+            m.delete }, time))
+            */
     });
 
     player.on(AudioPlayerStatus.Idle, async () => {
+        //player.stop()
+        var song = serverQueue.songs[0];
+        var songQueue = serverQueue.songs;
+
         console.log("Ended");
-        //songQueue = serverQueue.songs;
-        // If the song doesn't appear to work maybe it's time to just make it define a new song song +1 and then get the next song considering id or just
-        // Return +1 on each song but idk.
-        try {
-            //var nextSong = await getNextSong(guild, song)
-            var nextSong = getNextResource(guild)
-            //console.log(nextSong)
-            if (!nextSong) {
-                console.log("Noo")
-                serverQueue.playing = false;
-                player.stop();
+        if (serverQueue.loop) {
+            if (songQueue.length == 1) {
+                console.log("Only one song!")
+                return play(guild)
+            } else {
+                console.log("There are more songs to loop!")
+                songQueue.push(songQueue[0])
+                songQueue.shift();
+                return play(guild)
+            }
+            //var getNextSong = await createResource(song);
+            //return await player.play(getNextSong)        
+        }
+        // It was else       
+        else {
+            console.log("Remove!")
+            serverQueue.songs.shift();
+            song = songQueue[0];
+            console.log(song)
+
+            if (!song) {
+                serverQueue.connection.disconnect();
+                queue.delete(guild.id);
             }
             else {
-                var getNextSong = await createResource(nextSong);
-                player.play(getNextSong)
+                console.log("Play next song!");
+                play(guild)
             }
+        }
 
-        }
-        catch (e) {
-            console.log(e)
-        }
+
     });
 }
 
 async function createResource(song) {
-    console.log("Playing: " + song.title);
+    //console.log("Playing: " + song.title);
     //console.log("Playing this one!", song.url)   
     try {
-        if (!song) { console.log("Some error I think :/") }
+        if (!song) {
+            console.log("Some error I think :/")
+            return;
+        }
 
         var stream = await ytdl(song.url, {
             filter: 'audioonly',
@@ -468,23 +508,21 @@ function getNextResource(guild) {
     var serverQueue = queue.get(guild.id);
     var songQueue = serverQueue.songs;
     var loop = serverQueue.loop;
-   
 
     if (loop) {
         console.log("Loop")
-        songQueue.push(songQueue[0])
-        songQueue.shift();
-        //serverQueue.currentSong = songQueue.indexOf(resource);
-        //var startFrom = await createResource(resource);
-        var resource = songQueue[0]
-        return resource;
+        if (songQueue.length == 1) {
+            return songQueue[0]
+        } else {
+            songQueue.push(songQueue[0])
+            songQueue.shift();
+            return songQueue[0];
+        }
+
     }
     else {
-        //var resource = songQueue[0]
         songQueue.shift();
-        var resource = songQueue[0]
-        //var playNext = await createResource(resource);
-        return resource;
+        return songQueue[0];
     }
 }
 function convertTime(sec) {
@@ -518,6 +556,7 @@ async function searchYouTubeAsync(args) {
         return vidURL;
     }
     catch (e) {
+        console.log("Api")
         console.log(e);
     }
 
