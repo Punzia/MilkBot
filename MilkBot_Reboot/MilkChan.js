@@ -96,6 +96,24 @@ client.on('interactionCreate', async interaction => {
 
 
     switch (commandName) {
+        case "help":
+            const helpEmbed = new MessageEmbed()
+            .setColor('#0099ff')
+            .setTitle("🥛 Command List! ")
+            .setAuthor({ name: '🥛', iconURL: milkbotAvatar, url: 'https://punzia.com/' })
+            .setThumbnail(milkbotAvatar)
+            .setDescription('Some helpful list of commands!')
+            .addFields(
+                { name: '``/help``', value: 'Shows this command!' },
+                { name: '``/play **song**``', value: 'Play music!' },
+                { name: '``/skip``', value: 'Skip to next song in queue' },
+                { name: '``/loop``', value: 'Enable and disable loop!' },
+                { name: '``/remove **id**``', value: 'Remove the song in queue at current value!' },
+            )
+            .setTimestamp()
+
+        await interaction.reply({ embeds: [helpEmbed], ephemeral: true  });
+            break;
 
         case "play":
             // Time to play music!
@@ -293,9 +311,14 @@ async function playFunc(interaction, serverQueue) {
     if (!voiceChannel) {
         return await interaction.reply("I'm sorry, but you must be in a voice channel!");
     }
+    try {
+        let url = await searchYouTubeAsync(query);
+        let songInfo = await ytdl.getInfo(url);
+    }
+    catch {
+        return await interaction.reply("I'm sorry but the API key used for the bot won't allow us to play music :C")
+    }
 
-    let url = await searchYouTubeAsync(query);
-    let songInfo = await ytdl.getInfo(url);
     //console.log(songInfo)
 
     const song = {
@@ -558,6 +581,7 @@ async function searchYouTubeAsync(args) {
     catch (e) {
         console.log("Api")
         console.log(e);
+        return
     }
 
 }
