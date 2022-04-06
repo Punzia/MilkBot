@@ -10,14 +10,13 @@ Discord Bot that plays music
 /leave - Just leave okay? Fine B-Baka!
 /stop - Stop the current playing music.
 ```
+** Play **
+![image](https://user-images.githubusercontent.com/28727157/162026193-b638b706-ee29-44d7-a77a-0517fc1dc19e.png)
 
-![image](https://user-images.githubusercontent.com/28727157/161148456-a2c9bab9-4ae1-4620-97f4-afb90ea5bb97.png)
-
-
-
+** Queue **
 ![image](https://user-images.githubusercontent.com/28727157/161291910-b8f85697-3dab-4639-ae4c-1103827fb96b.png)
 
-![image](https://user-images.githubusercontent.com/28727157/162026193-b638b706-ee29-44d7-a77a-0517fc1dc19e.png)
+
 
 
 
