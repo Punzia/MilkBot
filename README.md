@@ -17,4 +17,7 @@ Discord Bot that plays music
 
 ![image](https://user-images.githubusercontent.com/28727157/161291910-b8f85697-3dab-4639-ae4c-1103827fb96b.png)
 
+![image](https://user-images.githubusercontent.com/28727157/162026193-b638b706-ee29-44d7-a77a-0517fc1dc19e.png)
+
+
 
